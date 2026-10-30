@@ -40,6 +40,7 @@ over MCP, without touching the product's code.
 | D14 | Connecting the AI tool: `mvn swing2mcp:setup` installs the MCP server under `~/.swing2mcp/bin` and writes the Claude Code (`.mcp.json`), Cursor (`.cursor/mcp.json`), OpenCode (`opencode.json`) and Codex (`.codex/config.toml`) settings. By default all four are written; `-Dswing2mcp.clients=` narrows this down. Existing settings are kept | Client-independent and easy connection (C1). Since the settings contain machine-specific paths, each developer runs `setup` once. |
 | D15 | The plugin is compiled with Java 8; it can be used even if Maven runs on Java 8. The MCP server needs Java 17; if Maven is on 8, `-Dswing2mcp.mcpJavaHome` is required | In legacy projects Maven often runs on Java 8. |
 | D16 | `swing2mcp:run` compiles first, opens the application with the project's classpath in a separate process and waits until it closes (when Maven exits, the application closes too). `mainClass` is found automatically from the settings of other plugins (jar, assembly, exec). `-Dswing2mcp.jar` uses a prebuilt jar, `-Dswing2mcp.javaHome` a different Java. Long classpaths are written to a manifest jar so they do not hit the Windows command-line limit | The project's jar and code do not change; the agent exists only in this run. |
+| D17 | The agent is placed into an application that does not have it only via `connect_app`, when the pid is given explicitly. Automatic connection (when there is only one application) applies only to applications that already have the agent | Placing something into an application must be an explicit request; no invisible intervention (the security sensitivity in C1/C2). |
 
 ## Components
 
@@ -91,7 +92,7 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
 |---|---|
 | **M1** ✅ | demo-app + agent (with `-javaagent`) + bridge: snapshot, screenshot, click, type, end to end |
 | **M2** ✅ | Maven plugin: `mvn swing2mcp:run` (starts the application with the agent), `mvn swing2mcp:setup` (installs the MCP server, writes the AI tools' settings) |
-| M3 | Attach: connecting later to a running, logged-in application (`connect_app` places the agent if needed) |
+| **M3** ✅ | Attach: connecting later to a running, logged-in application (`connect_app` places the agent if needed) |
 | M3b | Login macro: automatic login on restart |
 | M4 | Hot reload: reloading a compiled class in the running JVM (HotSwap → JetBrains Runtime/HotswapAgent) |
 | M5 | `open_panel(class)`: opening a panel directly; taking beans from the ApplicationContext if Spring is present |
@@ -115,6 +116,19 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
   will be added in a later step.
 - Keyboard shortcuts / sending keys (`press_key`: Enter, Esc, Ctrl+S) are not there yet.
 - Drawing ref labels on top of the screenshot is not there yet.
+
+## M3 results (2026-10-31, macOS)
+
+- Connected later, on Java 8 and Java 21, to an application started without the agent (plain `java -jar`);
+  placing the agent took about 0.25 s. The application kept its state: the logged-in session and the
+  unsaved text in the form were still there in a new AI session.
+- On a Java 8 target, Java 17's attach client mistakes success for an error (`AgentLoadException: 0`);
+  this case is recognized and counted as success.
+- On a Java 21 target, an "agent loaded dynamically" warning shows up on the application's stderr; it does not
+  affect operation. If a future JDK version turns dynamic loading off by default,
+  `-XX:+EnableDynamicAgentLoading` or `mvn swing2mcp:run` will be needed.
+- For attach, the MCP server must run on a JDK, not a JRE (`jdk.attach` module).
+  On a JRE the list comes back empty and `connect_app` gives a clear error.
 
 ## Risks / to be verified
 

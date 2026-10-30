@@ -56,15 +56,20 @@ final class Tools {
         });
 
         tool("list_apps", """
-                List running Java applications that have the swing2mcp agent, with their windows. \
-                The connected one is marked with *.""", """
+                List running Java applications. Those with the swing2mcp agent show their windows; \
+                the connected one is marked with *. The others can be connected with connect_app, \
+                which loads the agent into them without restarting.""", """
                 {"type":"object","properties":{}}""", args -> {
             List<Apps.AppInfo> list = apps.list();
-            if (list.isEmpty()) {
-                return text("No applications running with the swing2mcp agent.");
+            List<Attacher.Jvm> others = apps.otherJvms();
+            if (list.isEmpty() && others.isEmpty()) {
+                return text("No running Java applications found.");
             }
             StringBuilder sb = new StringBuilder();
             long connected = apps.currentPid().orElse(-1L);
+            if (!list.isEmpty()) {
+                sb.append("With swing2mcp agent:\n");
+            }
             for (Apps.AppInfo app : list) {
                 String windows;
                 try {
@@ -79,14 +84,23 @@ final class Tools {
                         .append(" | Java ").append(app.java()).append(" | ").append(app.command())
                         .append(" | windows: ").append(windows.isEmpty() ? "none" : windows).append('\n');
             }
+            if (!others.isEmpty()) {
+                sb.append(list.isEmpty() ? "" : "\n").append("Other Java processes (no agent yet; connect_app loads it):\n");
+                for (Attacher.Jvm jvm : others) {
+                    sb.append("  pid ").append(jvm.pid()).append(" | ")
+                            .append(jvm.name().isBlank() ? "(unknown main class)" : jvm.name()).append('\n');
+                }
+            }
             return text(sb.toString());
         });
 
-        tool("connect_app", "Connect to a running application by pid (see list_apps).", """
+        tool("connect_app", """
+                Connect to a running Java application by pid (see list_apps). If it was started without \
+                swing2mcp, the agent is loaded into it first: no restart, and the application keeps its \
+                state (open windows, logged-in user). Works with Java 8+ processes of the same OS user.""", """
                 {"type":"object","properties":{"pid":{"type":"integer"}},"required":["pid"]}""", args -> {
-            AgentClient client = apps.connect(num(args, "pid", -1));
-            return text("Connected to pid " + client.pid + ".\n"
-                    + client.get("/ping", Map.of(), Duration.ofSeconds(3)));
+            String result = apps.connectOrAttach(num(args, "pid", -1));
+            return text(result + "\n" + apps.current().get("/ping", Map.of(), Duration.ofSeconds(3)));
         });
 
         tool("stop_app", "Terminate an application (default: the connected one).", """

@@ -71,14 +71,59 @@ final class Apps {
     }
 
     AgentClient connect(long pid) throws IOException {
-        AppInfo app = list().stream().filter(a -> a.pid() == pid).findFirst()
-                .orElseThrow(() -> new IOException("No swing2mcp-enabled application with pid " + pid
-                        + ". Use list_apps to see running applications."));
+        AppInfo app = find(pid).orElseThrow(() -> new IOException("No swing2mcp-enabled application with pid "
+                + pid + ". Use list_apps to see running applications."));
         current = new AgentClient(app.pid(), app.port(), app.token());
         return current;
     }
 
-    /** The connected application; connects automatically when exactly one is running. */
+    /** Connects to a running Java application, loading the agent into it first if needed. */
+    String connectOrAttach(long pid) throws IOException, InterruptedException {
+        if (find(pid).isPresent()) {
+            connect(pid);
+            return "Connected to pid " + pid + ".";
+        }
+        if (!ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)) {
+            throw new IOException("No process with pid " + pid + ". Use list_apps to see running applications.");
+        }
+        try {
+            Attacher.loadAgent(pid, extractAgent());
+        } catch (NoClassDefFoundError e) {
+            throw new IOException("Attaching needs the MCP server to run on a JDK (jdk.attach module), not a JRE. "
+                    + "Alternatively start the application with mvn swing2mcp:run.");
+        }
+        long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+        while (System.nanoTime() < deadline) {
+            if (find(pid).isPresent()) {
+                connect(pid);
+                return "Loaded the agent into running pid " + pid + " and connected. The application kept its state.";
+            }
+            Thread.sleep(100);
+        }
+        throw new IOException("The agent was loaded into pid " + pid + " but did not report within 10 s.");
+    }
+
+    /** Java processes without the agent that connect_app could attach to; empty on a JRE. */
+    List<Attacher.Jvm> otherJvms() throws IOException {
+        Set<Long> withAgent = new HashSet<>();
+        for (AppInfo app : list()) {
+            withAgent.add(app.pid());
+        }
+        try {
+            return Attacher.list().stream().filter(j -> !withAgent.contains(j.pid())).toList();
+        } catch (NoClassDefFoundError e) {
+            return List.of();
+        }
+    }
+
+    private Optional<AppInfo> find(long pid) throws IOException {
+        return list().stream().filter(a -> a.pid() == pid).findFirst();
+    }
+
+    /**
+     * The connected application; connects automatically when exactly one application has the
+     * agent. Never attaches on its own: loading the agent always needs an explicit connect_app.
+     */
     AgentClient current() throws IOException {
         if (current != null && ProcessHandle.of(current.pid).map(ProcessHandle::isAlive).orElse(false)) {
             return current;
@@ -86,7 +131,8 @@ final class Apps {
         current = null;
         List<AppInfo> apps = list();
         if (apps.isEmpty()) {
-            throw new IOException("No application is running with the swing2mcp agent. Start one with launch_app.");
+            throw new IOException("No application is connected. Use list_apps, then connect_app with a pid, "
+                    + "or start one with launch_app.");
         }
         if (apps.size() > 1) {
             throw new IOException("Several applications are running (pids "
