@@ -48,8 +48,8 @@ public class SetupMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.basedir}", readonly = true, required = true)
     private File basedir;
 
-    /** AI tools to configure: claude, cursor, opencode (comma separated). */
-    @Parameter(property = "swing2mcp.clients", defaultValue = "claude,cursor,opencode")
+    /** AI tools to configure: claude, cursor, opencode, codex (comma separated). */
+    @Parameter(property = "swing2mcp.clients", defaultValue = "claude,cursor,opencode,codex")
     private String clients;
 
     /** Java 17+ home that runs the MCP server. Default: Maven's JVM, then JAVA_HOME, if 17+. */
@@ -77,8 +77,10 @@ public class SetupMojo extends AbstractMojo {
                     writeMcpServers(new File(basedir, ".cursor/mcp.json"), java, server);
                 } else if ("opencode".equals(client)) {
                     writeOpenCode(java, server);
+                } else if ("codex".equals(client)) {
+                    writeCodex(java, server);
                 } else if (client.length() > 0) {
-                    getLog().warn("swing2mcp: unknown client '" + client + "' (use claude, cursor, opencode)");
+                    getLog().warn("swing2mcp: unknown client '" + client + "' (use claude, cursor, opencode, codex)");
                 }
             } catch (IOException e) {
                 throw new MojoExecutionException("Cannot write configuration for " + client, e);
@@ -164,6 +166,50 @@ public class SetupMojo extends AbstractMojo {
         entry.addProperty("enabled", true);
         child(root, "mcp").add(serverName, entry);
         write(file, root);
+    }
+
+    /**
+     * Codex reads TOML from .codex/config.toml (project config is only used for trusted projects).
+     * Our [mcp_servers.NAME] table and its sub-tables are replaced; everything else is kept as is.
+     */
+    private void writeCodex(File java, File server) throws IOException {
+        File file = new File(basedir, ".codex/config.toml");
+        String header = "[mcp_servers." + serverName + "]";
+        String subPrefix = "[mcp_servers." + serverName + ".";
+        StringBuilder kept = new StringBuilder();
+        if (file.isFile()) {
+            boolean skipping = false;
+            for (String line : new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).split("\r?\n", -1)) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("[")) {
+                    skipping = trimmed.equals(header) || trimmed.startsWith(subPrefix);
+                }
+                if (!skipping) {
+                    kept.append(line).append('\n');
+                }
+            }
+        }
+        String existing = kept.toString().replaceAll("\\s+$", "");
+        StringBuilder toml = new StringBuilder(existing);
+        if (toml.length() > 0) {
+            toml.append("\n\n");
+        }
+        toml.append(header).append('\n')
+                .append("command = ").append(tomlString(java.getAbsolutePath())).append('\n')
+                .append("args = [\"-jar\", ").append(tomlString(server.getAbsolutePath())).append("]\n")
+                .append("startup_timeout_sec = 30\n");
+        file.getAbsoluteFile().getParentFile().mkdirs();
+        Files.write(file.toPath(), toml.toString().getBytes(StandardCharsets.UTF_8));
+        getLog().info("swing2mcp: registered '" + serverName + "' in " + file
+                + " (Codex uses project config only when the project is trusted)");
+    }
+
+    /** Literal string, so Windows backslashes need no escaping. */
+    private static String tomlString(String value) {
+        if (value.indexOf('\'') < 0) {
+            return "'" + value + "'";
+        }
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private static JsonObject read(File file) throws IOException {
