@@ -45,6 +45,14 @@ project's jar and code do not change.
 **4. Tell the AI tool what you want it to do**, for example: *"Log in with admin/admin,
 add a customer named Ali Veli from İzmir and check that it shows up in the table."*
 
+### Connecting to an application that is already open
+
+Even if the application was opened without swing2mcp (from the IDE, with `java -jar`, with a `.bat` script), the AI
+tool can connect to it later: just say *"connect to the open application"*. `list_apps`
+shows the Java applications on the machine. `connect_app` places the agent inside the application
+without a restart; the logged-in session and open screens are kept. `setup` is enough for this;
+you do not even need to add the plugin to the pom.
+
 ### `swing2mcp:run` options
 
 | Property | Description |
@@ -67,7 +75,7 @@ add a customer named Ali Veli from İzmir and check that it shows up in the tabl
 
 | Tool | Description |
 |---|---|
-| `list_apps` / `connect_app` | Lists applications running with swing2mcp / selects one (connects automatically if there is only one) |
+| `list_apps` / `connect_app` | Lists running Java applications / connects to one; if it has no agent, places it without a restart |
 | `snapshot` | Text summary of the windows, with `ref` IDs |
 | `screenshot` | PNG image of a window or component |
 | `click` | Button, menu item, table row; double click, right click |
