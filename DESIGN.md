@@ -42,6 +42,10 @@ over MCP, without touching the product's code.
 | D16 | `swing2mcp:run` compiles first, opens the application with the project's classpath in a separate process and waits until it closes (when Maven exits, the application closes too). `mainClass` is found automatically from the settings of other plugins (jar, assembly, exec). `-Dswing2mcp.jar` uses a prebuilt jar, `-Dswing2mcp.javaHome` a different Java. Long classpaths are written to a manifest jar so they do not hit the Windows command-line limit | The project's jar and code do not change; the agent exists only in this run. |
 | D17 | The agent is placed into an application that does not have it only via `connect_app`, when the pid is given explicitly. Automatic connection (when there is only one application) applies only to applications that already have the agent | Placing something into an application must be an explicit request; no invisible intervention (the security sensitivity in C1/C2). |
 | D18 | The **agent finds the Spring context itself**, without touching the application: (1) static fields in application classes ("SpringContext holder"), (2) the JVM shutdown hook (`registerShutdownHook`), (3) the object graph from the visible windows. If it is not found, the Spring tools fail politely and the other tools are not affected. No dependency route for now | Zero touch on the product, works with attach too, no new delivery part (D13). Spring is not referenced at compile time; works with every Spring version and without Spring. |
+| D19 | Hot reload does not compile: the AI tool or the IDE compiles (`mvn -q compile`), `hot_reload` only applies compiled classes | Stays independent of the build system (D11); Maven, Gradle and IDE builds work the same way. |
+| D20 | Changes are detected **at method level** (bytecode digest; the constant pool and line numbers do not affect it). A screen is rebuilt only if its setup code changed (the constructor, the init method and what they call, the constructors of anonymous classes they create); otherwise the screen state is kept | So that data typed in during the AI's "fix the bug → try again" loop is not lost. |
+| D21 | Rebuild order: (1) in place, by calling the class's init method again (`initComponents`, `jbInit`, `$$$setupUI$$$`, `@PostConstruct`...), (2) if there is no init method, a new instance via the no-argument constructor and updating the field references in the parent components, (3) if neither exists, a "reopen it/restart" message | Rebuilding in place does not replace the object, so references elsewhere (Spring included) do not break. |
+| D22 | Structural changes (adding/removing methods or fields, new lambdas, a changed superclass) are rejected on a standard JVM **without applying anything**, and the change is explained; if JetBrains Runtime (`-XX:+AllowEnhancedClassRedefinition`) or DCEVM is detected, they are applied. All classes are applied in one go (all or nothing) | Half-applied code leads to inconsistent behavior; the AI must know what to do (rewrite / restart). |
 
 ## Components
 
@@ -96,7 +100,7 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
 | **M3** ✅ | Attach: connecting later to a running, logged-in application (`connect_app` places the agent if needed) |
 | M3b | Login macro: automatic login on restart |
 | **M4** ✅ | Spring: Spring demo (demo-spring); the agent finds the context itself; `spring_beans`, `open_spring_bean` (opening a screen without navigating the menu) |
-| M5 | Hot reload: reloading a compiled class in the running JVM (HotSwap → JetBrains Runtime/HotswapAgent); rebuilding the changed screen in Spring |
+| **M5** ✅ | Hot reload: loading compiled classes into the running JVM (`hot_reload`); rebuilding screens whose setup code changed, keeping the screen state for other changes |
 | M6 | Windows-specific topics (DPI, Robot fallback, path/space problems) |
 | (open) | Opening a panel by class name in applications without Spring (`open_panel(class)`) |
 
@@ -143,10 +147,31 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
 - Not verified: the static holder and object graph routes (in the demo the shutdown hook finds it first);
   trying it with Spring 3.x/4.x and Spring 6.
 
+## M5 results (2026-10-31, macOS)
+
+- demo-app with `mvn swing2mcp:run` on Java 8, without ever closing the application: compile ~1.1 s,
+  `hot_reload` ~0.17 s.
+  - Only `saveCustomer` changed → the screen was not rebuilt, typed text and selection were kept, the new
+    message appeared on the next click.
+  - `initComponents` changed → `CustomerPanel` was rebuilt in place; the buttons work.
+  - `paintComponent` changed → no rebuild, the chart has the new color.
+  - New method and new lambda → rejected without being applied, with an explanation; after the change was
+    reverted and compiled, it said "no changed classes".
+- demo-spring, opened with plain `java` on Java 21 and connected to later: the panel built with `@PostConstruct init()`
+  was rebuilt in place; a service change was applied without touching the screen.
+- Application running with `java -jar`: a clear error without `classesDir`; with `classesDir` 26 classes
+  were loaded; `ReportPanel`, which has no init method, was replaced with a new instance and its reference updated;
+  for the main window built in the constructor, a "close and reopen it" message.
+- Known limits: static initializers do not run again; in multi-module projects, classes in another module's
+  jar are not loaded (only class folders); new Spring beans are not added; when rebuilding
+  in place, listeners that the init method registers elsewhere may be duplicated. The structural change route
+  with JetBrains Runtime was not tried.
+
 ## Risks / to be verified
 
-- **Windows:** If the user folder path contains a space (`C:\Users\Ali Veli`),
-  the `-javaagent` path inside `JAVA_TOOL_OPTIONS` may be split on Java 8. Must be tested on Windows.
+- **Windows:** If the user folder path contains a space (`C:\Users\Ali Veli`), `launch_app`
+  quotes the agent path; verified on macOS that Java 8 accepts the quoted path,
+  must be tested on Windows. Test steps: [WINDOWS-TEST.md](WINDOWS-TEST.md).
 
 - Attaching from the bridge on JDK 17 to a Java 8 JVM (expected: works; to be verified in M2).
 - Modal dialogs: if an action is triggered with `invokeAndWait`, the EDT blocks. Actions should be

@@ -73,6 +73,9 @@ final class HotReload {
         }
     }
 
+    /** File hash of a class file whose relation to the loaded class is not known. */
+    private static final long UNKNOWN = Long.MIN_VALUE;
+
     private final Instrumentation inst;
     private final RefRegistry refs;
     private final long jvmStart = ManagementFactory.getRuntimeMXBean().getStartTime();
@@ -228,7 +231,7 @@ final class HotReload {
             message.append("\nNo screen needed rebuilding: open screens kept their state (typed text, selections). ")
                     .append("Changed event handlers and logic take effect on the next action.");
         } else {
-            message.append("\nRebuilt because their construction code changed (their UI state was reset):");
+            message.append("\nScreens whose construction code changed (rebuilt ones lost their UI state):");
             for (String line : rebuilt) {
                 message.append("\n  ").append(line);
             }
@@ -323,20 +326,36 @@ final class HotReload {
                 }
             }
         }
-        // Rebuilding a container rebuilds its children too, so skip nested targets.
-        Set<Component> unique = Collections.newSetFromMap(new IdentityHashMap<Component, Boolean>());
-        unique.addAll(targets);
+        // Outer components first. A successfully rebuilt container rebuilds its children too, so
+        // those are skipped; children of a container that could not be rebuilt are still tried.
+        Collections.sort(targets, new java.util.Comparator<Component>() {
+            public int compare(Component a, Component b) {
+                return depth(a) - depth(b);
+            }
+        });
+        Set<Component> done = Collections.newSetFromMap(new IdentityHashMap<Component, Boolean>());
+        Set<Component> rebuilt = Collections.newSetFromMap(new IdentityHashMap<Component, Boolean>());
         List<String> lines = new ArrayList<String>();
         for (Component target : targets) {
-            if (!unique.contains(target) || hasAncestorIn(target, unique)) {
+            if (!done.add(target) || hasAncestorIn(target, rebuilt)) {
                 continue;
             }
-            unique.remove(target);
+            String outcome = Rebuilder.rebuild(target);
+            if (Rebuilder.succeeded(outcome)) {
+                rebuilt.add(target);
+            }
             String name = target.getClass().getName();
-            lines.add(name.substring(name.lastIndexOf('.') + 1) + " [ref=" + refs.refFor(target) + "]: "
-                    + Rebuilder.rebuild(target));
+            lines.add(name.substring(name.lastIndexOf('.') + 1) + " [ref=" + refs.refFor(target) + "]: " + outcome);
         }
         return lines;
+    }
+
+    private static int depth(Component component) {
+        int depth = 0;
+        for (Container parent = component.getParent(); parent != null; parent = parent.getParent()) {
+            depth++;
+        }
+        return depth;
     }
 
     private static void collectInstances(Component component, Set<Class<?>> types, List<Component> into) {
@@ -541,17 +560,20 @@ final class HotReload {
     }
 
     /**
-     * Records the current class files of a directory. A file changed after the JVM started may
-     * already differ from the loaded class, so it gets no per-method info: its first reload then
-     * treats every method as changed.
+     * Records the current class files of a directory. A file written after the JVM started may
+     * already differ from the loaded class: it is recorded as unknown, so the first reload applies
+     * it and treats every method as changed.
      */
     private void scanBaseline(File dir) {
         scannedDirs.add(dir);
         for (File file : classFiles(dir)) {
             try {
+                if (file.lastModified() > jvmStart) {
+                    baseline.put(className(dir, file), new Baseline(UNKNOWN, null));
+                    continue;
+                }
                 byte[] bytes = read(file);
-                ClassInfo info = file.lastModified() > jvmStart ? null : ClassInfo.parse(bytes);
-                baseline.put(className(dir, file), new Baseline(crc(bytes), info));
+                baseline.put(className(dir, file), new Baseline(crc(bytes), ClassInfo.parse(bytes)));
             } catch (IOException ignored) {
                 // unreadable or not a class file
             }
