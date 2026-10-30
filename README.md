@@ -1,58 +1,79 @@
 # swing2mcp
 
-An MCP server that lets AI tools such as Claude Code **see and use** legacy Java Swing
-applications without touching their code. A Playwright-like experience for Swing.
+A developer tool that lets AI tools **see and use** legacy Java Swing applications without
+touching their code. It offers a Playwright-like experience for Swing.
+It works with Claude Code, Cursor, OpenCode and any tool that supports MCP.
 
+## Quick start (Maven project)
+
+**1. Add the plugin to your project's `pom.xml`.** This is the only part you need to add:
+
+```xml
+<build>
+  <plugins>
+    <plugin>
+      <groupId>io.github.swing2mcp</groupId>
+      <artifactId>swing2mcp-maven-plugin</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+    </plugin>
+  </plugins>
+</build>
 ```
-Claude Code ──MCP(stdio)──▶ swing2mcp.jar ──localhost HTTP──▶ agent (inside the application's JVM)
-```
 
-- The application does not change: the agent is added at startup via `JAVA_TOOL_OPTIONS=-javaagent:...`.
-- Target application: Java 8+ (tested with 8 and 21). The bridge needs Java 17+.
-- The screen state is captured as text (`snapshot`) and as PNG (`screenshot`). The
-  `[ref=eN]` values in the snapshot are used to click, type and select.
-
-## Building
-
-Requires JDK 17+ and Maven:
+**2. Connect your AI tool.** Each developer runs this once:
 
 ```bash
-mvn package
+mvn swing2mcp:setup
 ```
 
-Outputs:
+This command installs the MCP server under `~/.swing2mcp/bin` and writes the Claude Code (`.mcp.json`),
+Cursor (`.cursor/mcp.json`) and OpenCode (`opencode.json`) settings into the project. Existing settings
+are kept. If you only want one of them: `-Dswing2mcp.clients=cursor`. These files contain machine-specific
+paths; do not commit them to the repository.
 
-| File | What |
+**3. Run the application:**
+
+```bash
+mvn swing2mcp:run
+```
+
+The project is compiled and the application opens as usual. The only difference is that the AI tool can
+connect to the application. When the application closes or Maven is stopped, everything shuts down. The
+project's jar and code do not change.
+
+**4. Tell the AI tool what you want it to do**, for example: *"Log in with admin/admin,
+add a customer named Ali Veli from İzmir and check that it shows up in the table."*
+
+### `swing2mcp:run` options
+
+| Property | Description |
 |---|---|
-| `mcp/target/swing2mcp.jar` | MCP server (agent embedded). The only file the user needs. |
-| `agent/target/swing2mcp-agent.jar` | The agent itself (for manual use with `-javaagent`) |
-| `demo-app/target/demo-app.jar` | Java 8 demo application (login: `admin` / `admin`) |
+| `-Dswing2mcp.mainClass=...` | Main class. If not given, it is taken from the jar/assembly/exec plugin settings. |
+| `-Dswing2mcp.jar=target/app.jar` | Runs a prebuilt jar instead of the project classpath. |
+| `-Dswing2mcp.javaHome=/jdk8` | Runs the application with a different Java (e.g. Maven on 17, the application on 8). |
+| `-Dswing2mcp.jvmArgs="-Xmx1g -Dprofile=dev"` | Extra JVM options. |
+| `-Dswing2mcp.args="..."` | Application arguments. |
+| `-Dswing2mcp.agent=false` | Runs plainly, without the agent. |
 
-## Adding it to Claude Code
+### Requirements
 
-```bash
-claude mcp add swing -- java -jar /full/path/swing2mcp/mcp/target/swing2mcp.jar
-```
+- Application: Java 8+ (tested with 8 and 21).
+- Maven: 3.6.3+, can also run on Java 8.
+- MCP server: Java 17+. If Maven runs on Java 8:
+  `mvn swing2mcp:setup -Dswing2mcp.mcpJavaHome=/path/to/jdk17`
 
-This `java` must be version 17 or later. The application itself can run on a different Java
-(e.g. 8); that is specified in the `launch_app` command.
-
-Example request: *"Start demo-app.jar with Java 8, log in with admin/admin and add a customer
-named Ali Veli from İzmir."*
-
-## Tools
+## What the AI tool can use
 
 | Tool | Description |
 |---|---|
-| `launch_app` | Starts the application with the agent attached (`java -jar ...`, `.bat`/`.sh` script) |
-| `list_apps` / `connect_app` | Lists running applications that have the agent / selects one |
-| `stop_app` | Closes the application |
+| `list_apps` / `connect_app` | Lists applications running with swing2mcp / selects one (connects automatically if there is only one) |
 | `snapshot` | Text summary of the windows, with `ref` IDs |
 | `screenshot` | PNG image of a window or component |
 | `click` | Button, menu item, table row; double click, right click |
 | `type_text` | Text field, password, spinner, editable combo |
 | `select_option` | Combo, list, tab, table row, tree node |
 | `wait_for` | Waits for a text to appear or disappear |
+| `launch_app` / `stop_app` | The AI tool starting / closing the application itself (use outside Maven) |
 
 Example snapshot:
 
@@ -71,18 +92,22 @@ Example snapshot:
         - row 0: 1 | Ayşe Yılmaz | ayse@example.com | Ankara | [x]
 ```
 
-`field=` is the name of the Java field that holds the component in the application. It makes matching with the code easier.
+`field=` is the name of the Java field that holds the component in the application; it makes matching the screen with the code easier.
 
-## Using the agent by hand
+## How does it work?
 
-```bash
-java -javaagent:swing2mcp-agent.jar -jar product.jar
+```
+AI tool ──MCP──▶ swing2mcp MCP server ──localhost──▶ agent (inside the application)
 ```
 
-The agent listens only on `127.0.0.1`, with a random port and token. It writes the connection details
-to `~/.swing2mcp/jvms/<pid>.properties` (readable only by its owner) and deletes the file when the
-application exits.
+The agent is added to the application's JVM as a `-javaagent`. It listens only on `127.0.0.1`, with a random
+port and token. It writes the connection details to `~/.swing2mcp/jvms/<pid>.properties`
+(readable only by its owner) and deletes the file when the application exits.
 
-## Development
+## Developing this repository
 
-See [DESIGN.md](DESIGN.md) for the project structure and decisions.
+`mvn install` with JDK 17+ and Maven. Modules: `agent` (Java 8), `mcp` (Java 17),
+`maven-plugin` (Java 8), `demo-app` (Java 8; login `admin` / `admin`). To try the demo
+application, run `mvn swing2mcp:setup` and `mvn swing2mcp:run` in the `demo-app` folder.
+
+Design decisions and roadmap: [DESIGN.md](DESIGN.md).

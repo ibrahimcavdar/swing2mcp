@@ -2,3 +2,8 @@ target/
 .idea/
 *.iml
 .DS_Store
+
+# AI client configs written by mvn swing2mcp:setup (machine-specific paths)
+demo-app/.mcp.json
+demo-app/.cursor/
+demo-app/opencode.json

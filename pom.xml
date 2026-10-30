@@ -14,6 +14,7 @@
     <module>agent</module>
     <module>demo-app</module>
     <module>mcp</module>
+    <module>maven-plugin</module>
   </modules>
 
   <properties>

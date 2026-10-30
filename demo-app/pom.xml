@@ -27,6 +27,12 @@
           </archive>
         </configuration>
       </plugin>
+      <!-- The only thing a project adds to use swing2mcp: mvn swing2mcp:run / mvn swing2mcp:setup -->
+      <plugin>
+        <groupId>io.github.swing2mcp</groupId>
+        <artifactId>swing2mcp-maven-plugin</artifactId>
+        <version>${project.version}</version>
+      </plugin>
     </plugins>
   </build>
 </project>
