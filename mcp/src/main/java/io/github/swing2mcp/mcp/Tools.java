@@ -180,6 +180,24 @@ final class Tools {
             long timeoutMs = num(args, "timeoutMs", 10000);
             return text(apps.current().get("/wait", params(args), Duration.ofMillis(timeoutMs + 10000)));
         });
+
+        tool("spring_beans", """
+                For Spring applications: list the beans of the application's Spring context, which is found \
+                automatically without any change to the application. Window and panel beans are listed \
+                first and can be shown with open_spring_bean. Fails politely if the application has no \
+                Spring.""", """
+                {"type":"object","properties":{
+                  "filter":{"type":"string","description":"Only beans whose name or class contains this text"}
+                }}""", args -> text(apps.current().get("/spring/beans", params(args), DEFAULT_TIMEOUT)));
+
+        tool("open_spring_bean", """
+                For Spring applications: show a window or panel bean directly instead of navigating menus. \
+                Windows and dialogs are opened (prototype beans give a fresh instance); a panel that is not \
+                on screen yet is shown in a new frame; a panel in a hidden tab gets its tab selected. \
+                Returns the new snapshot.""", """
+                {"type":"object","properties":{
+                  "name":{"type":"string","description":"Bean name from spring_beans"}
+                },"required":["name"]}""", args -> text(apps.current().post("/spring/open", params(args), DEFAULT_TIMEOUT)));
     }
 
     private void tool(String name, String description, String schema, Handler handler) {

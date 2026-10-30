@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -42,6 +43,8 @@ import java.util.concurrent.ThreadFactory;
  *   POST /type   ref, text, submit, append
  *   POST /select ref, value | index
  *   GET  /wait?text&gone&timeoutMs
+ *   GET  /spring/beans?filter          Spring beans, if a Spring context can be found
+ *   POST /spring/open  name            show a window/panel bean directly
  */
 final class AgentServer {
 
@@ -52,13 +55,15 @@ final class AgentServer {
     private final String token;
     private final RefRegistry refs = new RefRegistry();
     private final Actions actions = new Actions(refs);
+    private final SpringSupport spring;
 
-    private AgentServer(String token) {
+    private AgentServer(String token, Instrumentation inst) {
         this.token = token;
+        this.spring = new SpringSupport(inst);
     }
 
-    static AgentServer start(AgentOptions options) throws Exception {
-        final AgentServer agent = new AgentServer(newToken());
+    static AgentServer start(AgentOptions options, Instrumentation inst) throws Exception {
+        final AgentServer agent = new AgentServer(newToken(), inst);
         final HttpServer http = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), options.port), 0);
         http.setExecutor(daemonPool());
         http.createContext("/", new HttpHandler() {
@@ -103,6 +108,10 @@ final class AgentServer {
                 text(exchange, 200, afterAction(actions.type(params)));
             } else if ("/select".equals(path)) {
                 text(exchange, 200, afterAction(actions.select(params)));
+            } else if ("/spring/beans".equals(path)) {
+                text(exchange, 200, spring.beans(params.get("filter")));
+            } else if ("/spring/open".equals(path)) {
+                text(exchange, 200, afterAction(spring.open(params.get("name"))));
             } else if ("/wait".equals(path)) {
                 text(exchange, 200, waitFor(params));
             } else {

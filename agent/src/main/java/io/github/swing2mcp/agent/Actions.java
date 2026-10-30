@@ -262,7 +262,8 @@ final class Actions {
 
     // ---------------------------------------------------------------------------------
 
-    private Result perform(String description, final Runnable action) {
+    /** Runs an action on the EDT without blocking on modal dialogs, then waits for the UI to settle. */
+    static Result perform(String description, final Runnable action) {
         final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
         EventQueue.invokeLater(new Runnable() {
             public void run() {

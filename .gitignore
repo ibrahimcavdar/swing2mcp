@@ -8,3 +8,7 @@ demo-app/.mcp.json
 demo-app/.cursor/
 demo-app/opencode.json
 demo-app/.codex/
+demo-spring/.mcp.json
+demo-spring/.cursor/
+demo-spring/opencode.json
+demo-spring/.codex/
