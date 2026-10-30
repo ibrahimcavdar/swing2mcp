@@ -41,6 +41,7 @@ over MCP, without touching the product's code.
 | D15 | The plugin is compiled with Java 8; it can be used even if Maven runs on Java 8. The MCP server needs Java 17; if Maven is on 8, `-Dswing2mcp.mcpJavaHome` is required | In legacy projects Maven often runs on Java 8. |
 | D16 | `swing2mcp:run` compiles first, opens the application with the project's classpath in a separate process and waits until it closes (when Maven exits, the application closes too). `mainClass` is found automatically from the settings of other plugins (jar, assembly, exec). `-Dswing2mcp.jar` uses a prebuilt jar, `-Dswing2mcp.javaHome` a different Java. Long classpaths are written to a manifest jar so they do not hit the Windows command-line limit | The project's jar and code do not change; the agent exists only in this run. |
 | D17 | The agent is placed into an application that does not have it only via `connect_app`, when the pid is given explicitly. Automatic connection (when there is only one application) applies only to applications that already have the agent | Placing something into an application must be an explicit request; no invisible intervention (the security sensitivity in C1/C2). |
+| D18 | The **agent finds the Spring context itself**, without touching the application: (1) static fields in application classes ("SpringContext holder"), (2) the JVM shutdown hook (`registerShutdownHook`), (3) the object graph from the visible windows. If it is not found, the Spring tools fail politely and the other tools are not affected. No dependency route for now | Zero touch on the product, works with attach too, no new delivery part (D13). Spring is not referenced at compile time; works with every Spring version and without Spring. |
 
 ## Components
 
@@ -94,9 +95,10 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
 | **M2** ✅ | Maven plugin: `mvn swing2mcp:run` (starts the application with the agent), `mvn swing2mcp:setup` (installs the MCP server, writes the AI tools' settings) |
 | **M3** ✅ | Attach: connecting later to a running, logged-in application (`connect_app` places the agent if needed) |
 | M3b | Login macro: automatic login on restart |
-| M4 | Hot reload: reloading a compiled class in the running JVM (HotSwap → JetBrains Runtime/HotswapAgent) |
-| M5 | `open_panel(class)`: opening a panel directly; taking beans from the ApplicationContext if Spring is present |
-| M6 | Windows-specific topics (DPI, Robot fallback), Java 21 demo variant |
+| **M4** ✅ | Spring: Spring demo (demo-spring); the agent finds the context itself; `spring_beans`, `open_spring_bean` (opening a screen without navigating the menu) |
+| M5 | Hot reload: reloading a compiled class in the running JVM (HotSwap → JetBrains Runtime/HotswapAgent); rebuilding the changed screen in Spring |
+| M6 | Windows-specific topics (DPI, Robot fallback, path/space problems) |
+| (open) | Opening a panel by class name in applications without Spring (`open_panel(class)`) |
 
 ## M1 results (2026-10-29, macOS)
 
@@ -129,6 +131,17 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
   `-XX:+EnableDynamicAgentLoading` or `mvn swing2mcp:run` will be needed.
 - For attach, the MCP server must run on a JDK, not a JRE (`jdk.attach` module).
   On a JRE the list comes back empty and `connect_app` gives a clear error.
+
+## M4 results (2026-10-31, macOS)
+
+- demo-spring (Spring 5.3, XML + annotations) was used with the existing tools without changes.
+- The context was found through the JVM shutdown hook, with `mvn swing2mcp:run` on Java 8 and by connecting later
+  (attach) on Java 21. On Java 9+ the agent opens `java.lang` to itself via Instrumentation.
+- `open_spring_bean`: a prototype dialog bean was opened without touching the menu; for the panel already on screen
+  it said "already on screen"; for a service bean it returned a clear error. In an application without Spring
+  `spring_beans` says "Spring not found".
+- Not verified: the static holder and object graph routes (in the demo the shutdown hook finds it first);
+  trying it with Spring 3.x/4.x and Spring 6.
 
 ## Risks / to be verified
 
@@ -163,7 +176,7 @@ everything a library can and more); what was missing was the entry point that co
 Attach was moved to after the Maven plugin. The interim decision for attach stands: `connect_app`
 places the agent itself if needed.
 
-### C2: How to reach Spring (not decided)
+### C2: How to reach Spring → decided (D18)
 
 In Spring applications, features such as "open the panel directly" or "skip the login by calling a service"
 need access to the `ApplicationContext`. Options:
@@ -182,6 +195,14 @@ User's view (2026-10-30): Instead of invisible things that could cause security 
 control given explicitly through Maven is preferred; so the dependency route seems more reasonable.
 But it must not introduce a new delivery part or management layer (D13). Possible solution:
 instead of a separate module, also use the existing agent artifact as an optional dependency.
+
+Findings from the trial (2026-10-31, demo-spring, with attach, without touching the application):
+- The whole `ApplicationContext` was found through the JVM shutdown hook (`registerShutdownHook`).
+  Common in desktop Spring applications; on Java 9+ the agent has to open `java.base` to itself.
+- The bean factory was reached by following the fields of screen objects (depends on the application, not guaranteed).
+- Scanning for a static "SpringContext holder" class finds nothing in this demo (a pattern often seen in legacy projects).
+- The dependency route also needs a line added to the Spring configuration (XML bean or `@Import`) next to the pom:
+  plain Spring has no auto-discovery. So it touches the product code.
 
 ### C3: Connecting over HTTP (postponed)
 

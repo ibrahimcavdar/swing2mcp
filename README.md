@@ -53,6 +53,14 @@ shows the Java applications on the machine. `connect_app` places the agent insid
 without a restart; the logged-in session and open screens are kept. `setup` is enough for this;
 you do not even need to add the plugin to the pom.
 
+### Spring applications
+
+No extra setting is needed. If the application uses Spring, swing2mcp finds the Spring context itself
+without touching the application. The AI tool can list screens and services with `spring_beans`, and
+open a screen directly with `open_spring_bean`, without navigating the menus (*"open the Settings
+screen"*). In applications without Spring these two tools just say "Spring not found"; everything else
+works the same.
+
 ### `swing2mcp:run` options
 
 | Property | Description |
@@ -82,6 +90,8 @@ you do not even need to add the plugin to the pom.
 | `type_text` | Text field, password, spinner, editable combo |
 | `select_option` | Combo, list, tab, table row, tree node |
 | `wait_for` | Waits for a text to appear or disappear |
+| `spring_beans` | Lists the beans in Spring applications (screens are shown separately) |
+| `open_spring_bean` | Opens a Spring screen bean directly, without navigating the menu |
 | `launch_app` / `stop_app` | The AI tool starting / closing the application itself (use outside Maven) |
 
 Example snapshot:
@@ -116,7 +126,7 @@ port and token. It writes the connection details to `~/.swing2mcp/jvms/<pid>.pro
 ## Developing this repository
 
 `mvn install` with JDK 17+ and Maven. Modules: `agent` (Java 8), `mcp` (Java 17),
-`maven-plugin` (Java 8), `demo-app` (Java 8; login `admin` / `admin`). To try the demo
+`maven-plugin` (Java 8), `demo-app` and `demo-spring` (Java 8; login `admin` / `admin`). To try the demo
 application, run `mvn swing2mcp:setup` and `mvn swing2mcp:run` in the `demo-app` folder.
 
 Design decisions and roadmap: [DESIGN.md](DESIGN.md).

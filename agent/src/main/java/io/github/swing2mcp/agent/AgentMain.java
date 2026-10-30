@@ -21,19 +21,19 @@ public final class AgentMain {
     }
 
     public static void premain(String args, Instrumentation inst) {
-        start(args);
+        start(args, inst);
     }
 
     public static void agentmain(String args, Instrumentation inst) {
-        start(args);
+        start(args, inst);
     }
 
-    private static synchronized void start(String args) {
+    private static synchronized void start(String args, Instrumentation inst) {
         if (server != null) {
             return;
         }
         try {
-            server = AgentServer.start(AgentOptions.parse(args));
+            server = AgentServer.start(AgentOptions.parse(args), inst);
         } catch (Throwable t) {
             // Never break the host application because of the agent.
             System.err.println("[swing2mcp] agent failed to start: " + t);
