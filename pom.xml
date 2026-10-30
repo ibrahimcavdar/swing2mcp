@@ -13,6 +13,7 @@
   <modules>
     <module>agent</module>
     <module>demo-app</module>
+    <module>demo-spring</module>
     <module>mcp</module>
     <module>maven-plugin</module>
   </modules>
