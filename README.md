@@ -2,7 +2,7 @@
 
 A developer tool that lets AI tools **see and use** legacy Java Swing applications without
 touching their code. It offers a Playwright-like experience for Swing.
-It works with Claude Code, Cursor, OpenCode and any tool that supports MCP.
+It works with Claude Code, Cursor, OpenCode, Codex and any tool that supports MCP.
 
 ## Quick start (Maven project)
 
@@ -27,7 +27,8 @@ mvn swing2mcp:setup
 ```
 
 This command installs the MCP server under `~/.swing2mcp/bin` and writes the Claude Code (`.mcp.json`),
-Cursor (`.cursor/mcp.json`) and OpenCode (`opencode.json`) settings into the project. Existing settings
+Cursor (`.cursor/mcp.json`), OpenCode (`opencode.json`) and Codex (`.codex/config.toml`; Codex reads it
+only in projects marked as trusted) settings into the project. Existing settings
 are kept. If you only want one of them: `-Dswing2mcp.clients=cursor`. These files contain machine-specific
 paths; do not commit them to the repository.
 

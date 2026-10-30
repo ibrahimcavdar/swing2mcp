@@ -7,3 +7,4 @@ target/
 demo-app/.mcp.json
 demo-app/.cursor/
 demo-app/opencode.json
+demo-app/.codex/
