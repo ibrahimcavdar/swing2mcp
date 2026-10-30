@@ -24,6 +24,9 @@
             <manifestEntries>
               <Premain-Class>io.github.swing2mcp.agent.AgentMain</Premain-Class>
               <Agent-Class>io.github.swing2mcp.agent.AgentMain</Agent-Class>
+              <!-- needed for hot reload (Instrumentation.redefineClasses) -->
+              <Can-Redefine-Classes>true</Can-Redefine-Classes>
+              <Can-Retransform-Classes>true</Can-Retransform-Classes>
             </manifestEntries>
           </archive>
         </configuration>

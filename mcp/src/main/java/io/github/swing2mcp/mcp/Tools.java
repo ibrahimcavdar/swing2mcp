@@ -181,6 +181,28 @@ final class Tools {
             return text(apps.current().get("/wait", params(args), Duration.ofMillis(timeoutMs + 10000)));
         });
 
+        tool("hot_reload", """
+                Apply code changes to the running application without restarting it. Workflow: edit the \
+                Java sources, compile them (e.g. `mvn -q compile` in the application's module, or let the \
+                IDE build), then call hot_reload. Changed classes are found in the class directories \
+                (target/classes) and loaded into the running JVM. If only event handlers, painting or \
+                business logic changed, open screens keep their state; if a screen's construction code \
+                changed (constructor, initComponents, @PostConstruct...), that screen is rebuilt. Changes \
+                that add or remove methods or fields (including new lambdas) cannot be applied on a \
+                standard JVM: the result explains which, and nothing is changed; then restart the \
+                application. Returns the new snapshot.""", """
+                {"type":"object","properties":{
+                  "classesDir":{"type":"string","description":"Directory with compiled classes, if the application was not started from it (e.g. it runs from a jar)"},
+                  "rebuild":{"type":"string","enum":["auto","none","all"],"description":"auto (default): rebuild screens whose construction code changed; all: rebuild every open screen of a reloaded class; none: never"},
+                  "refs":{"type":"array","items":{"type":"string"},"description":"Refs of screens to rebuild in any case"}
+                }}""", args -> {
+            Map<String, Object> form = params(args);
+            if (args.get("refs") instanceof List<?> list) {
+                form.put("refs", String.join(",", list.stream().map(String::valueOf).toList()));
+            }
+            return text(apps.current().post("/reload", form, DEFAULT_TIMEOUT));
+        });
+
         tool("spring_beans", """
                 For Spring applications: list the beans of the application's Spring context, which is found \
                 automatically without any change to the application. Window and panel beans are listed \
