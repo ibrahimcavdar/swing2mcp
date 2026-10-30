@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.github.swing2mcp</groupId>
+    <artifactId>swing2mcp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>swing2mcp-maven-plugin</artifactId>
+  <packaging>maven-plugin</packaging>
+  <name>swing2mcp Maven plugin</name>
+  <description>
+    The only artifact users add to their project. Goals: swing2mcp:run starts the application with
+    the agent; swing2mcp:setup installs the MCP server and writes AI client configuration.
+  </description>
+
+  <properties>
+    <!-- Legacy builds often run Maven itself on Java 8 -->
+    <maven.compiler.release>8</maven.compiler.release>
+    <maven.version>3.9.9</maven.version>
+    <plugin-tools.version>3.15.1</plugin-tools.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-plugin-api</artifactId>
+      <version>${maven.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-core</artifactId>
+      <version>${maven.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven.plugin-tools</groupId>
+      <artifactId>maven-plugin-annotations</artifactId>
+      <version>${plugin-tools.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.11.0</version>
+    </dependency>
+    <!-- Never loaded by the plugin; resolved so that their jars can be handed to other JVMs -->
+    <dependency>
+      <groupId>io.github.swing2mcp</groupId>
+      <artifactId>swing2mcp-agent</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.swing2mcp</groupId>
+      <artifactId>swing2mcp</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-plugin-plugin</artifactId>
+        <version>${plugin-tools.version}</version>
+        <configuration>
+          <goalPrefix>swing2mcp</goalPrefix>
+          <!-- The bundled MCP server jar is Java 17, but the plugin's own code runs on Java 8 -->
+          <requiredJavaVersion>8</requiredJavaVersion>
+          <requiredMavenVersion>3.6.3</requiredMavenVersion>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
