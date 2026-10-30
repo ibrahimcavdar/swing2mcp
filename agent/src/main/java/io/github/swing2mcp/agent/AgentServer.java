@@ -45,6 +45,7 @@ import java.util.concurrent.ThreadFactory;
  *   GET  /wait?text&gone&timeoutMs
  *   GET  /spring/beans?filter          Spring beans, if a Spring context can be found
  *   POST /spring/open  name            show a window/panel bean directly
+ *   POST /reload classesDir, rebuild, refs   apply recompiled classes to the running application
  */
 final class AgentServer {
 
@@ -56,10 +57,12 @@ final class AgentServer {
     private final RefRegistry refs = new RefRegistry();
     private final Actions actions = new Actions(refs);
     private final SpringSupport spring;
+    private final HotReload hotReload;
 
     private AgentServer(String token, Instrumentation inst) {
         this.token = token;
         this.spring = new SpringSupport(inst);
+        this.hotReload = new HotReload(inst, refs);
     }
 
     static AgentServer start(AgentOptions options, Instrumentation inst) throws Exception {
@@ -112,6 +115,8 @@ final class AgentServer {
                 text(exchange, 200, spring.beans(params.get("filter")));
             } else if ("/spring/open".equals(path)) {
                 text(exchange, 200, afterAction(spring.open(params.get("name"))));
+            } else if ("/reload".equals(path)) {
+                text(exchange, 200, afterAction(hotReload.reload(params)));
             } else if ("/wait".equals(path)) {
                 text(exchange, 200, waitFor(params));
             } else {
@@ -178,6 +183,7 @@ final class AgentServer {
         sb.append("pid=").append(pid()).append('\n');
         sb.append("java=").append(System.getProperty("java.version")).append('\n');
         sb.append("command=").append(System.getProperty("sun.java.command", "")).append('\n');
+        sb.append("hotReload=").append(hotReload.capability()).append('\n');
         String titles = Edt.call(new Callable<String>() {
             public String call() {
                 StringBuilder t = new StringBuilder();
