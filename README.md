@@ -53,6 +53,20 @@ shows the Java applications on the machine. `connect_app` places the agent insid
 without a restart; the logged-in session and open screens are kept. `setup` is enough for this;
 you do not even need to add the plugin to the pom.
 
+### Seeing code changes without a restart (hot reload)
+
+The AI tool changes the source code, compiles it (`mvn -q compile` or the IDE) and with `hot_reload` applies the change
+to the running application. The application does not close and the logged-in session is kept:
+
+- If only button behavior, business logic or painting code changed, the open screens stay as they are
+  (including typed text and selections).
+- If a screen's setup code changed (constructor, `initComponents`, `@PostConstruct`...), only that
+  screen is rebuilt.
+- Adding a new method/field or a new lambda requires a restart on a standard JVM; the tool says so clearly
+  without applying anything.
+
+If the application runs from a jar, pass the folder of the compiled classes: `classesDir=target/classes`.
+
 ### Spring applications
 
 No extra setting is needed. If the application uses Spring, swing2mcp finds the Spring context itself
@@ -90,6 +104,7 @@ works the same.
 | `type_text` | Text field, password, spinner, editable combo |
 | `select_option` | Combo, list, tab, table row, tree node |
 | `wait_for` | Waits for a text to appear or disappear |
+| `hot_reload` | Applies compiled code changes without a restart; rebuilds the screen if needed |
 | `spring_beans` | Lists the beans in Spring applications (screens are shown separately) |
 | `open_spring_bean` | Opens a Spring screen bean directly, without navigating the menu |
 | `launch_app` / `stop_app` | The AI tool starting / closing the application itself (use outside Maven) |

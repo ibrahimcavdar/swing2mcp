@@ -164,7 +164,13 @@ final class Apps {
         }
         Map<String, String> env = builder.environment();
         String existing = env.getOrDefault("JAVA_TOOL_OPTIONS", "");
-        env.put("JAVA_TOOL_OPTIONS", (existing + " -javaagent:" + agentJar).trim());
+        // The JVM splits JAVA_TOOL_OPTIONS on spaces but honours quotes (also on Java 8), which
+        // matters for Windows user folders such as C:\Users\Ali Veli.
+        String agentPath = agentJar.toString();
+        if (agentPath.indexOf(' ') >= 0) {
+            agentPath = "\"" + agentPath + "\"";
+        }
+        env.put("JAVA_TOOL_OPTIONS", (existing + " -javaagent:" + agentPath).trim());
         builder.redirectErrorStream(true);
         builder.redirectOutput(log.toFile());
         builder.redirectInput(ProcessBuilder.Redirect.from(windows ? Path.of("NUL").toFile() : Path.of("/dev/null").toFile()));

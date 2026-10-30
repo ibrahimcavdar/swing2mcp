@@ -70,6 +70,13 @@ final class Rebuilder {
         return false;
     }
 
+    static boolean succeeded(String outcome) {
+        return outcome.startsWith(REBUILT) || outcome.startsWith(REPLACED);
+    }
+
+    private static final String REBUILT = "rebuilt in place";
+    private static final String REPLACED = "replaced by a new instance";
+
     /** Returns what was done, for the reply. */
     static String rebuild(Component component) {
         Method init = findInitMethod(component.getClass());
@@ -102,7 +109,7 @@ final class Rebuilder {
             ((JComponent) component).revalidate();
         }
         component.repaint();
-        return "rebuilt in place by calling " + init.getName() + "() again";
+        return REBUILT + " by calling " + init.getName() + "() again";
     }
 
     private static String replace(Component old) {
@@ -145,7 +152,7 @@ final class Rebuilder {
         int updated = updateReferences(parent, old, fresh);
         parent.validate();
         parent.repaint();
-        return "replaced by a new instance (no init method)" + (updated > 0 ? "; updated " + updated
+        return REPLACED + " (no init method)" + (updated > 0 ? "; updated " + updated
                 + " field reference(s) to it" : "");
     }
 
