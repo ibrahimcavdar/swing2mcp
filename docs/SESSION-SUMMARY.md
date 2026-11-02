@@ -1,0 +1,93 @@
+# Session summary (M1–M5, 2026-10-28 → 2026-11-02)
+
+This file was written to continue the project on another computer with another AI agent. The first
+session took place on macOS; the next step is testing on Windows (see [WINDOWS-TEST.md](../WINDOWS-TEST.md)).
+
+## What is the project?
+
+A developer tool for legacy Java Swing applications. AI coding tools (Claude Code,
+Cursor, Codex, OpenCode) can **see** a running Swing application (text snapshot +
+screenshot) and **use** it (click, type, select). The application's code does not change.
+
+The two pain points it started from:
+1. Opening the application and logging in takes 1+ minute; every attempt means waiting.
+2. When the AI changes the code, the application has to be closed and reopened.
+
+Goal: share it with other teams at work and make it open source. The target environment is mostly
+**Windows**, the applications are often **Java 8**, with or without Spring.
+
+## Principles
+
+- **Every milestone is committed and tagged** (`m1`, `m2`...). Risky work is done on a separate branch
+  and fast-forwarded into `main` when done, so going back to the previous tag is always possible.
+- Client-independent (not specific to Claude Code). Maven-focused but extensible.
+- No invisible or security-wise problematic automatic behavior; control is given explicitly.
+- Few parts to deliver.
+
+## Architecture (short)
+
+```
+AI tool ──MCP(stdio)──▶ swing2mcp MCP server (Java 17) ──localhost HTTP + token──▶ agent (in the application's JVM, Java 8)
+```
+
+| Module | Java | Role |
+|---|---|---|
+| `agent` | 8, no dependencies | Inside the application: snapshot, screenshot, actions, Spring, hot reload |
+| `mcp` | 17 (MCP Java SDK 2.1.0) | MCP server; embeds the agent jar, does launch/attach |
+| `maven-plugin` | 8 | The only part the user adds: `swing2mcp:setup`, `swing2mcp:run` |
+| `demo-app` | 8 | Legacy-style test application without Spring (admin/admin) |
+| `demo-spring` | 8, Spring 5.3 | Test application with Spring (admin/admin) |
+
+All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open questions C1–C3).
+
+## Milestone history
+
+| Tag | What was done | How it was verified |
+|---|---|---|
+| `m1` | Agent + MCP server + demo-app. snapshot, screenshot, click, type_text, select_option, wait_for, launch_app | Java 8 and 21, end to end over MCP stdio |
+| `m2` | Maven plugin: `setup` (installs the MCP server, writes the settings of 4 tools), `run` (compiles the project, starts it with the agent). Codex support | Maven on Java 8; with a client connecting from `.mcp.json` |
+| `m3` | `connect_app` places the agent into an application without one, without a restart (attach); `list_apps` shows all Java processes | Java 8 and 21; the application state was kept |
+| `m4` | demo-spring; the agent finds the Spring context itself (static field, shutdown hook, object graph); `spring_beans`, `open_spring_bean` | run (Java 8) and attach (Java 21); polite error in an application without Spring |
+| `m5` | `hot_reload`: finds changed classes at method level and applies them; rebuilds only the screen whose setup code changed; rejects structural changes with an explanation | run (Java 8), attach Spring (Java 21), `java -jar` + `classesDir` (Java 21); the M1–M4 flows were run again |
+
+## Status and next step
+
+- All work is on `main`; `m5` = the latest state. **Never tried** on Windows.
+- **Next step:** The user will go through [WINDOWS-TEST.md](../WINDOWS-TEST.md) on the work computer (Windows).
+  We will evaluate the findings together and make fixes. If a problem is specific to M5, it will be
+  compared with `m4`.
+- Windows-specific precautions taken in advance: a manifest jar for long classpaths (`run`); a quoted agent path
+  in `JAVA_TOOL_OPTIONS` for user folders with spaces (`launch_app`); the MCP SDK
+  uses UTF-8 on stdio (no risk for Turkish characters); literal strings in TOML (backslashes).
+
+## Open questions / possible next milestones
+
+- Fixing the Windows findings (priority).
+- Multi-module projects: loading classes from another module's jar with hot reload.
+- Real key events (`type_text` currently uses `setText`; KeyListener/InputVerifier
+  may not be triggered) and `press_key` (Enter, Esc, Ctrl+S).
+- Opening a panel by class name in applications without Spring (`open_panel`).
+- Drawing ref labels on the screenshot.
+- Connecting over HTTP (C3).
+- Not tried: Spring 3/4/6, the static SpringContext holder route, structural hot reload with JetBrains Runtime.
+
+## Technical notes (pitfalls)
+
+- Java 17's attach client reports success on a Java 8 target as `AgentLoadException: 0`;
+  `Attacher` counts this as success.
+- Because of the embedded Java 17 MCP jar, the Maven plugin tooling marked the plugin as "requires Java 17".
+  Fixed with `requiredJavaVersion=8` in `maven-plugin/pom.xml`.
+- demo-spring needs the `javax.annotation-api` dependency for Java 11+ (`@PostConstruct`).
+- In the macOS tests, background processes ignore SIGINT. The Ctrl+C behavior was tested with
+  SIGTERM.
+- The hot reload baseline is recorded in the background when the agent starts. Class files written after
+  the JVM started are counted as "unknown" and applied on the first reload.
+
+## Development and testing
+
+- Build: `mvn install` at the repository root with JDK 17+.
+- Manual MCP testing: [scripts/mcp-steps.py](../scripts/mcp-steps.py). It starts the MCP server and
+  runs the tool calls given as JSON lines on stdin in order (description at the top of
+  the file). All end-to-end tests in the first session were done this way.
+- If the demo sources are changed during tests, restore them at the end with `git checkout -- demo-app demo-spring`
+  and rebuild.

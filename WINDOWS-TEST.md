@@ -18,21 +18,24 @@ The milestones are marked as git tags: `m1`, `m2`, `m3`, `m4`, `m5`.
 
 The commands are for `cmd.exe`. If you use PowerShell, write `$env:X="Y"` instead of `set X=Y`.
 
-## 1. Getting the repository onto Windows
+## 1. Getting the repository
 
-The repository is only on the Mac for now. There are two ways:
+The repository is on GitHub (private): https://github.com/ibrahimcavdar/swing2mcp
 
-- **With a file (recommended, without uploading anywhere):** On the Mac, copy the `swing2mcp.bundle`
-  file in the repository root to Windows (USB, shared folder, etc.). Then on Windows:
+```bat
+git clone https://github.com/ibrahimcavdar/swing2mcp.git
+cd swing2mcp
+```
 
-  ```bat
-  git clone swing2mcp.bundle swing2mcp
-  cd swing2mcp
-  git checkout m5
-  ```
+The `main` branch contains the M5 code and these documents (the `m5` tag shows the same code, at the commit
+before the documents).
 
-- **With a Git server:** Create a repository on your company's GitLab/GitHub and run `git push --all` and
-  `git push --tags` from the Mac. (This uploads the code to that server; your call.)
+Since it is private, the work computer needs a GitHub login (`gh auth login` or an SSH key).
+If there is no access to GitHub: in the repository root on the Mac, create a single file with `git bundle create swing2mcp.bundle --all`,
+copy it over and open it with `git clone swing2mcp.bundle swing2mcp`.
+
+If you will continue in this repository with an AI agent, first have it read [docs/SESSION-SUMMARY.md](docs/SESSION-SUMMARY.md)
+(Claude Code finds it by itself through `CLAUDE.md`).
 
 ## 2. Building
 
@@ -134,6 +137,8 @@ Open `demo-app` with `mvn swing2mcp:run`, log in and type a name into the form. 
 
 Note: to restore the demo sources after the test, run `git checkout -- demo-app demo-spring` in the repository root.
 
+To try the tools by hand without an AI client: [scripts/mcp-steps.py](scripts/mcp-steps.py) (Python 3.7+).
+
 ## 8. With a real company application (optional)
 
 1. Add the plugin to the application's pom (the block in the README). A local `mvn install` is needed first.
@@ -152,7 +157,7 @@ mvn swing2mcp:setup
 ```
 
 Close and reopen the AI tool (so the server restarts) and try the same step again. Then, to go back to `m5`,
-run `git checkout m5`, `mvn install`, `mvn swing2mcp:setup`.
+run `git checkout main`, `mvn install`, `mvn swing2mcp:setup`.
 
 - If it also happens on M4: the problem is Windows-specific or older.
 - If it happens only on M5: it comes from the hot reload changes.
