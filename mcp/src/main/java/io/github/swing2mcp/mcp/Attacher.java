@@ -52,8 +52,10 @@ final class Attacher {
         try {
             vm.loadAgent(agentJar.toString());
         } catch (AgentLoadException e) {
-            // A Java 8 target reports success as "0", which newer attach clients misread as a failure.
-            if (!"0".equals(e.getMessage())) {
+            // A Java 8 target reports success as "0", which newer attach clients misread as a failure:
+            // "0" on macOS/Linux, "Failed to load agent library: 0" on Windows.
+            String message = String.valueOf(e.getMessage());
+            if (!message.equals("0") && !message.endsWith(": 0")) {
                 throw new IOException("The agent could not be loaded into pid " + pid + ": " + e.getMessage());
             }
         } catch (AgentInitializationException e) {

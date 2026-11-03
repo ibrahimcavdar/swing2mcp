@@ -49,20 +49,25 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open que
 | `m3` | `connect_app` places the agent into an application without one, without a restart (attach); `list_apps` shows all Java processes | Java 8 and 21; the application state was kept |
 | `m4` | demo-spring; the agent finds the Spring context itself (static field, shutdown hook, object graph); `spring_beans`, `open_spring_bean` | run (Java 8) and attach (Java 21); polite error in an application without Spring |
 | `m5` | `hot_reload`: finds changed classes at method level and applies them; rebuilds only the screen whose setup code changed; rejects structural changes with an explanation | run (Java 8), attach Spring (Java 21), `java -jar` + `classesDir` (Java 21); the M1–M4 flows were run again |
+| `m5.1` | Windows test: fix for attaching to Java 8, a clear hot reload message when compiling with a different JDK, a manual test script | Windows 11: steps 2–7 with `mcp-steps.py`; Ctrl+C, screenshot and AI tool by the user |
 
 ## Status and next step
 
-- All work is on `main`; `m5` = the latest state. **Never tried** on Windows.
-- **Next step:** The user will go through [WINDOWS-TEST.md](../WINDOWS-TEST.md) on the work computer (Windows).
-  We will evaluate the findings together and make fixes. If a problem is specific to M5, it will be
-  compared with `m4`.
+- All work is on `main`; `m5.1` = the latest milestone.
+- **Windows (2026-11-03):** WINDOWS-TEST steps 2–7 were tried by an AI agent with `mcp-steps.py`
+  on Windows 11 and passed. Two bugs were fixed (Windows' success message when attaching to Java 8;
+  the confusing hot reload rejection after compiling with a different JDK). Details: DESIGN.md, "Windows test results".
+- The user tried the things that need a person at the screen with `scripts\windows-manual-test.ps1` (Ctrl+C,
+  screenshot, a real AI tool); the first AI attempts worked, the MCP connection had no problems. Tag: `m5.1`.
+- **Next step:** Try the AI side for longer, then optionally a real company
+  application.
 - Windows-specific precautions taken in advance: a manifest jar for long classpaths (`run`); a quoted agent path
   in `JAVA_TOOL_OPTIONS` for user folders with spaces (`launch_app`); the MCP SDK
   uses UTF-8 on stdio (no risk for Turkish characters); literal strings in TOML (backslashes).
 
 ## Open questions / possible next milestones
 
-- Fixing the Windows findings (priority).
+- User folder with spaces on Windows (not tried).
 - Multi-module projects: loading classes from another module's jar with hot reload.
 - Real key events (`type_text` currently uses `setText`; KeyListener/InputVerifier
   may not be triggered) and `press_key` (Enter, Esc, Ctrl+S).
@@ -73,8 +78,14 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open que
 
 ## Technical notes (pitfalls)
 
-- Java 17's attach client reports success on a Java 8 target as `AgentLoadException: 0`;
-  `Attacher` counts this as success.
+- Java 17's attach client reports success on a Java 8 target as `AgentLoadException: 0`
+  (`Failed to load agent library: 0` on Windows); `Attacher` counts both as success.
+- JDK 8 and JDK 9+ javac write the flags of anonymous classes in a static context differently; classes compiled
+  with a different JDK than the one that compiled the running application are rejected by hot reload (the message says so).
+- Windows PowerShell 5.1: if a `.ps1` file has no BOM, Turkish text gets garbled; `Start-Process -Wait`
+  also waits for child processes (it hangs because of the application opened with `launch_app`).
+- On the Windows test machine, Maven, JDK 8 and Python (embeddable) are under `%USERPROFILE%\tools`, not on
+  PATH; the `python` command is a Microsoft Store shortcut. JDK 21 is installed system-wide (`JAVA_HOME`).
 - Because of the embedded Java 17 MCP jar, the Maven plugin tooling marked the plugin as "requires Java 17".
   Fixed with `requiredJavaVersion=8` in `maven-plugin/pom.xml`.
 - demo-spring needs the `javax.annotation-api` dependency for Java 11+ (`@PostConstruct`).

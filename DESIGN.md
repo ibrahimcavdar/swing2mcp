@@ -167,11 +167,36 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
   in place, listeners that the init method registers elsewhere may be duplicated. The structural change route
   with JetBrains Runtime was not tried.
 
+## Windows test results (2026-11-03, Windows 11, display scale 125%)
+
+JDK 21 (Temurin), JDK 8u504, Maven 3.9.16; the MCP server was driven with `scripts/mcp-steps.py`.
+
+- What works: `mvn install`, `setup` (paths `C:\...`, the `mcpJavaHome` message when Maven is on Java 8),
+  `run` (Java 8), Turkish characters (snapshot and screenshot), attach to a Java 21 application
+  (state kept), Spring (Java 8: `spring_beans`, `open_spring_bean`), the three hot reload scenarios
+  (Java 8), `launch_app` with a Java path containing spaces (Java 21).
+- Screenshots are sharp at 125%; they are at logical pixel size (Java 8: 882x573, Java 21: 886x583),
+  so smaller than the window on the screen but not blurry.
+- **Fixed:** attaching from the MCP server on Java 21 to a Java 8 application reports success on Windows as
+  `AgentLoadException: Failed to load agent library: 0` (only `0` on macOS).
+  `Attacher` counts both as success; the 10 s check that waits for the agent's registration still catches real
+  errors.
+- **Fixed (hot reload message):** When the running classes were compiled with JDK 21 and the change with JDK 8,
+  the JVM rejected loading with "class modifiers". Cause: JDK 8 javac marks anonymous classes in a static
+  context as `final`, JDK 9+ does not; even if the source does not change,
+  the class looks "changed". The class flags are now compared in the structural check;
+  the rejection message lists the affected classes and explains "compiled with a different JDK/compiler, compile with the same one"
+  (user's choice: only a clear message; ignoring the differences was not implemented).
+- `mcp-steps.py` read stdin as cp1254 on Windows (Turkish steps were garbled); fixed to read UTF-8 (including files
+  with a BOM), and `--save-images` was added.
+- `scripts/windows-manual-test.ps1` for the checks to do by hand (Ctrl+C, display scale, AI tool).
+
 ## Risks / to be verified
 
 - **Windows:** If the user folder path contains a space (`C:\Users\Ali Veli`), `launch_app`
   quotes the agent path; verified on macOS that Java 8 accepts the quoted path,
-  must be tested on Windows. Test steps: [WINDOWS-TEST.md](WINDOWS-TEST.md).
+  not yet tried on Windows with a user folder containing spaces (the test machine has none).
+  Test steps: [WINDOWS-TEST.md](WINDOWS-TEST.md).
 
 - Attaching from the bridge on JDK 17 to a Java 8 JVM (expected: works; to be verified in M2).
 - Modal dialogs: if an action is triggered with `invokeAndWait`, the EDT blocks. Actions should be

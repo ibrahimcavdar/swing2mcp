@@ -6,6 +6,24 @@ earlier.
 
 The milestones are marked as git tags: `m1`, `m2`, `m3`, `m4`, `m5`.
 
+**Status (2026-11-03):** Steps 2–7 were tried on Windows 11 by an AI agent with `scripts/mcp-steps.py`
+and passed (details: [DESIGN.md](DESIGN.md), "Windows test results"). The ones that need a
+person at the screen were tried by the user with the shortcut below; the first AI attempts worked.
+
+## Shortcut: what to try by hand
+
+In the repository root, first run `mvn install` once. Then each one is a separate command (if Maven, JDK 8 and Python
+are not on PATH, they are looked up under `%USERPROFILE%\tools`):
+
+| Command | What it does | What you do |
+|---|---|---|
+| `powershell -ExecutionPolicy Bypass -File scripts\windows-manual-test.ps1 ctrlc` | Opens demo-app with `mvn swing2mcp:run` | When the window opens, press Ctrl+C in the terminal. The script prints "PASSED/FAILED" |
+| `powershell -ExecutionPolicy Bypass -File scripts\windows-manual-test.ps1 screenshot` | Opens the application with Java 8 and Java 17+, logs in, saves the screenshots under `demo-app\target\manual-test` and opens the folder | Compare the images with the windows on the screen (sharp? cut off?), Enter |
+| `powershell -ExecutionPolicy Bypass -File scripts\windows-manual-test.ps1 ai` | Writes the AI tool settings, copies the first prompt to the clipboard, opens the application | Open the AI tool in the `demo-app` folder and paste the prompt; then the prompts of step 7 |
+
+To set the display scale to 150%: Settings → System → Display → Scale. Then run `screenshot`
+again. If JDK 8 is somewhere else: `... screenshot -Java8Home "C:\path\jdk8"`.
+
 ## 0. Requirements
 
 | What | Why |
