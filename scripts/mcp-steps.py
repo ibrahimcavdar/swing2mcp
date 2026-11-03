@@ -13,6 +13,7 @@ matches the regex. "grep" filters the printed output. Example (Windows cmd):
 By default the server is mcp/target/swing2mcp.jar of this repository, started with "java" from PATH.
 """
 import argparse
+import base64
 import io
 import json
 import os
@@ -25,9 +26,12 @@ here = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument("--java", default="java", help="java executable of a JDK 17+")
 parser.add_argument("--jar", default=os.path.join(here, "..", "mcp", "target", "swing2mcp.jar"), help="MCP server jar")
+parser.add_argument("--save-images", metavar="DIR", help="save returned images (screenshots) as PNG files in DIR")
 options = parser.parse_args()
 
-# Windows consoles are not UTF-8 by default; snapshots contain Turkish text.
+# Windows consoles are not UTF-8 by default; snapshots and steps contain Turkish text.
+# utf-8-sig also accepts files that Notepad or PowerShell wrote with a byte order mark.
+sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8-sig")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 proc = subprocess.Popen([options.java, "-jar", options.jar], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE, encoding="utf-8")
@@ -72,7 +76,16 @@ for raw in sys.stdin:
     started = time.time()
     result = rpc("tools/call", {"name": step["tool"], "arguments": args})["result"]
     last = "\n".join(c["text"] for c in result["content"] if c["type"] == "text")
-    images = sum(1 for c in result["content"] if c["type"] == "image")
+    images = 0
+    for c in result["content"]:
+        if c["type"] == "image":
+            images += 1
+            if options.save_images:
+                os.makedirs(options.save_images, exist_ok=True)
+                path = os.path.join(options.save_images, f"{int(time.time() * 1000)}-{step['tool']}.png")
+                with open(path, "wb") as f:
+                    f.write(base64.b64decode(c["data"]))
+                print(f"saved {path}")
     flag = " (ERROR)" if result.get("isError") else ""
     print(f"\n=== {step['tool']} {json.dumps(args, ensure_ascii=False)} [{int((time.time() - started) * 1000)} ms]{flag}")
     grep = step.get("grep")

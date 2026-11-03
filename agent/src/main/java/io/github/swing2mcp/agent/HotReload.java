@@ -179,8 +179,15 @@ final class HotReload {
             if (!structural.isEmpty() && !enhanced) {
                 StringBuilder sb = new StringBuilder("Not reloaded. This JVM only allows changes inside existing methods, "
                         + "and these changes alter the shape of a class:\n");
+                boolean modifiers = false;
                 for (String s : structural) {
                     sb.append("  - ").append(s).append('\n');
+                    modifiers |= s.contains(MODIFIERS_CHANGED);
+                }
+                if (modifiers) {
+                    sb.append("Changed class modifiers in unchanged sources mean the classes were compiled by a different ")
+                            .append("JDK or compiler than the running version (e.g. the IDE instead of Maven). Compile ")
+                            .append("with the one that built the running application, or restart it.\n");
                 }
                 sb.append("Nothing was changed in the running application. Options: restart it (mvn swing2mcp:run), ")
                         .append("rewrite the change to stay inside existing methods, or run the application on JetBrains ")
@@ -457,7 +464,31 @@ final class HotReload {
         if (!new HashSet<String>(oldInterfaces).equals(new HashSet<String>(change.after.interfaces))) {
             result.add(simple + ": implemented interfaces changed");
         }
+        // Reflection reports nested classes with their source modifiers, not the class file flags the JVM
+        // compares, so this check needs a recorded earlier version.
+        if (change.before != null
+                && (change.before.access & REDEFINE_CHECKED_FLAGS) != (change.after.access & REDEFINE_CHECKED_FLAGS)) {
+            result.add(simple + MODIFIERS_CHANGED + "from [" + flags(change.before.access) + "] to ["
+                    + flags(change.after.access) + "]");
+        }
         return result;
+    }
+
+    /** Class file flags the JVM refuses to see changed on redefinition (JVM_RECOGNIZED_CLASS_MODIFIERS). */
+    private static final int REDEFINE_CHECKED_FLAGS = 0x7631;
+
+    private static final String MODIFIERS_CHANGED = ": class modifiers changed ";
+
+    private static String flags(int access) {
+        String[] names = {"public", "final", "super", "interface", "abstract", "synthetic", "annotation", "enum"};
+        int[] bits = {0x0001, 0x0010, 0x0020, 0x0200, 0x0400, 0x1000, 0x2000, 0x4000};
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < bits.length; i++) {
+            if ((access & bits[i]) != 0) {
+                sb.append(sb.length() == 0 ? "" : " ").append(names[i]);
+            }
+        }
+        return sb.toString();
     }
 
     private static String lambdaHint(String method) {

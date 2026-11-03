@@ -35,6 +35,8 @@ final class ClassInfo {
 
     final String name;
     final String superName;
+    /** Class file access flags (ACC_PUBLIC, ACC_FINAL...) */
+    int access;
     final List<String> interfaces = new ArrayList<String>();
     /** name -> descriptor */
     final Map<String, String> fields = new LinkedHashMap<String, String>();
@@ -85,10 +87,11 @@ final class ClassInfo {
             }
         }
         ConstantPool pool = new ConstantPool(tags, values);
-        in.readUnsignedShort(); // access flags
+        int access = in.readUnsignedShort();
         String thisName = pool.className(in.readUnsignedShort());
         int superIndex = in.readUnsignedShort();
         ClassInfo info = new ClassInfo(thisName, superIndex == 0 ? null : pool.className(superIndex));
+        info.access = access;
         int interfaceCount = in.readUnsignedShort();
         for (int i = 0; i < interfaceCount; i++) {
             info.interfaces.add(pool.className(in.readUnsignedShort()));
