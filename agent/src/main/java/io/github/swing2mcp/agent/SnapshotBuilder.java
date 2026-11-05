@@ -75,11 +75,21 @@ final class SnapshotBuilder {
     static List<Window> showingWindows() {
         List<Window> result = new ArrayList<Window>();
         for (Window window : Window.getWindows()) {
-            if (window.isShowing() && window.getWidth() > 0 && window.getHeight() > 0) {
+            if (window.isShowing() && window.getWidth() > 0 && window.getHeight() > 0 && !isFacade(window)) {
                 result.add(window);
             }
         }
         return result;
+    }
+
+    /**
+     * A Window object that only forwards to another container, e.g. a framework's "window" facade
+     * for an internal frame: its children belong to that container, which the snapshot already
+     * shows where it really is.
+     */
+    private static boolean isFacade(Window window) {
+        Component[] children = window.getComponents();
+        return children.length > 0 && children[0].getParent() != window;
     }
 
     /** The modal dialog that currently blocks input, if any (the most recently opened one). */
@@ -182,8 +192,8 @@ final class SnapshotBuilder {
             widgetDetails(c, depth + 1);
             return;
         }
-        if (!(c instanceof Container)) {
-            return;
+        if (!(c instanceof Container) || c instanceof JLabel) {
+            return; // e.g. a label (also a subclass) already used as a field's name, or without text
         }
         Container container = (Container) c;
         boolean custom = !Naming.isJdkClass(c.getClass());
@@ -220,6 +230,10 @@ final class SnapshotBuilder {
         }
         if (custom) {
             if (c.getComponentCount() == 0 && c instanceof JComponent) {
+                String text = Text.plain(customText(c));
+                if (!Text.isBlank(text)) {
+                    return "custom " + className(c) + " " + Text.quote(text, 200) + ref(c) + states(c) + fieldSuffix(c);
+                }
                 return "custom " + className(c) + ref(c) + " " + c.getWidth() + "x" + c.getHeight()
                         + " (custom-painted, use screenshot to see it)" + fieldSuffix(c);
             }
@@ -606,6 +620,29 @@ final class SnapshotBuilder {
         }
         String name = type.getName();
         return name.substring(name.lastIndexOf('.') + 1);
+    }
+
+    /**
+     * Text of a custom-painted component that offers it the usual way: a public no-argument
+     * getText() (or getLabel()/getTitle()) returning a String, found by reflection.
+     */
+    private static String customText(Component c) {
+        for (String name : new String[]{"getText", "getLabel", "getTitle"}) {
+            try {
+                java.lang.reflect.Method method = c.getClass().getMethod(name);
+                if (method.getReturnType() == String.class) {
+                    if (!java.lang.reflect.Modifier.isPublic(method.getDeclaringClass().getModifiers())) {
+                        method.setAccessible(true); // public method of a non-public class
+                    }
+                    return (String) method.invoke(c);
+                }
+            } catch (NoSuchMethodException e) {
+                // try the next name
+            } catch (Throwable e) {
+                return null; // the component's own code failed; show it as custom-painted
+            }
+        }
+        return null;
     }
 
     private static String titledBorder(Container c) {

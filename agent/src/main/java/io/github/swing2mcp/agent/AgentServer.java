@@ -67,6 +67,7 @@ final class AgentServer {
 
     static AgentServer start(AgentOptions options, Instrumentation inst) throws Exception {
         final AgentServer agent = new AgentServer(newToken(), inst);
+        ErrorMonitor.get().check();
         final HttpServer http = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), options.port), 0);
         http.setExecutor(daemonPool());
         http.createContext("/", new HttpHandler() {
@@ -99,10 +100,11 @@ final class AgentServer {
             }
             Map<String, String> params = params(exchange);
             String path = exchange.getRequestURI().getPath();
+            ErrorMonitor.get().check();
             if ("/ping".equals(path)) {
                 text(exchange, 200, ping());
             } else if ("/snapshot".equals(path)) {
-                text(exchange, 200, snapshot(params));
+                text(exchange, 200, snapshot(params) + ErrorMonitor.get().takeReport());
             } else if ("/screenshot".equals(path)) {
                 send(exchange, 200, "image/png", screenshot(params));
             } else if ("/click".equals(path)) {
@@ -118,14 +120,14 @@ final class AgentServer {
             } else if ("/reload".equals(path)) {
                 text(exchange, 200, afterAction(hotReload.reload(params)));
             } else if ("/wait".equals(path)) {
-                text(exchange, 200, waitFor(params));
+                text(exchange, 200, waitFor(params) + ErrorMonitor.get().takeReport());
             } else {
                 text(exchange, 404, "unknown endpoint " + path);
             }
         } catch (IllegalArgumentException e) {
-            text(exchange, 400, e.getMessage());
+            text(exchange, 400, e.getMessage() + ErrorMonitor.get().takeReport());
         } catch (Edt.BusyException e) {
-            text(exchange, 503, e.getMessage());
+            text(exchange, 503, e.getMessage() + ErrorMonitor.get().takeReport());
         } catch (Throwable t) {
             text(exchange, 500, t.toString());
         } finally {
@@ -248,14 +250,16 @@ final class AgentServer {
         return Screenshots.png(image);
     }
 
+    /** The action's message, the exceptions it caused in the application, and the new snapshot. */
     private String afterAction(Actions.Result result) {
+        String message = result.message + ErrorMonitor.get().takeReport();
         if (!result.settled) {
-            return result.message;
+            return message;
         }
         try {
-            return result.message + "\n\n" + snapshot(new HashMap<String, String>());
+            return message + "\n\n" + snapshot(new HashMap<String, String>());
         } catch (Exception e) {
-            return result.message + "\n\n(snapshot failed: " + e.getMessage() + ")";
+            return message + "\n\n(snapshot failed: " + e.getMessage() + ")";
         }
     }
 

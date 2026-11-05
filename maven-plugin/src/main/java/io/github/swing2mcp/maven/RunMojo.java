@@ -32,6 +32,7 @@ import java.util.jar.Manifest;
  *   mvn swing2mcp:run
  *   mvn swing2mcp:run -Dswing2mcp.javaHome=/path/to/jdk8
  *   mvn swing2mcp:run -Dswing2mcp.jar=target/app.jar
+ *   mvn swing2mcp:run -Dswing2mcp.classesDirs=../core/target/classes,../ui/target/classes
  * </pre>
  */
 @Mojo(name = "run", requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
@@ -67,6 +68,15 @@ public class RunMojo extends AbstractMojo {
     @Parameter(property = "swing2mcp.args")
     private String args;
 
+    /**
+     * Class directories of other modules, separated by commas, put on the classpath before the jars.
+     * In a multi-module project the application then runs the modules' freshly compiled classes
+     * instead of their installed jars, and {@code hot_reload} picks up changes in those modules
+     * without a {@code classesDir}. Relative paths are resolved against the project directory.
+     */
+    @Parameter(property = "swing2mcp.classesDirs")
+    private String classesDirs;
+
     @Parameter(property = "swing2mcp.workingDirectory", defaultValue = "${project.basedir}")
     private File workingDirectory;
 
@@ -84,6 +94,9 @@ public class RunMojo extends AbstractMojo {
         command.addAll(split(jvmArgs));
         String description;
         if (jar != null) {
+            if (classesDirs != null) {
+                getLog().warn("swing2mcp: classesDirs is ignored with swing2mcp.jar (java -jar uses the jar's own classpath)");
+            }
             command.add("-jar");
             command.add(jar.getAbsolutePath());
             description = jar.getName();
@@ -136,9 +149,9 @@ public class RunMojo extends AbstractMojo {
     }
 
     private String classpath() throws MojoExecutionException {
-        List<String> elements;
+        List<String> elements = new ArrayList<String>(extraClassesDirs());
         try {
-            elements = project.getRuntimeClasspathElements();
+            elements.addAll(project.getRuntimeClasspathElements());
         } catch (Exception e) {
             throw new MojoExecutionException("Cannot resolve the runtime classpath", e);
         }
@@ -147,6 +160,34 @@ public class RunMojo extends AbstractMojo {
             return inline;
         }
         return pathingJar(elements).getAbsolutePath();
+    }
+
+    private List<String> extraClassesDirs() throws MojoExecutionException {
+        List<String> result = new ArrayList<String>();
+        if (classesDirs == null) {
+            return result;
+        }
+        for (String entry : classesDirs.split("[,;]")) {
+            if (entry.trim().length() == 0) {
+                continue;
+            }
+            File dir = new File(entry.trim());
+            if (!dir.isAbsolute()) {
+                dir = new File(project.getBasedir(), entry.trim());
+            }
+            try {
+                dir = dir.getCanonicalFile();
+            } catch (IOException e) {
+                dir = dir.getAbsoluteFile();
+            }
+            if (!dir.isDirectory()) {
+                throw new MojoExecutionException("swing2mcp.classesDirs: " + dir + " is not a directory. "
+                        + "Compile that module first (mvn compile).");
+            }
+            getLog().info("swing2mcp: classes of " + dir + " come before the jars");
+            result.add(dir.getPath());
+        }
+        return result;
     }
 
     /** A jar that contains only a manifest whose Class-Path lists the real classpath. */

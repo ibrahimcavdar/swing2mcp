@@ -139,30 +139,54 @@ final class HotReload {
         int notLoaded = 0;
         synchronized (this) {
             Map<String, List<Class<?>>> loaded = loadedClasses();
-            for (File dir : dirs) {
-                boolean firstLook = !scannedDirs.contains(dir);
-                if (firstLook) {
-                    scanBaseline(dir);
+            Set<File> classpathDirs = new HashSet<File>(classDirectories());
+            OriginalBytes originals = new OriginalBytes(jvmStart);
+            try {
+                for (File dir : dirs) {
+                    // Only a directory the classes were loaded from tells what the JVM runs. For any other
+                    // directory (e.g. a module that runs from its jar) the original comes from the jar.
+                    if (!scannedDirs.contains(dir) && classpathDirs.contains(dir)) {
+                        scanBaseline(dir);
+                    }
+                    for (File file : classFiles(dir)) {
+                        String name = className(dir, file);
+                        byte[] bytes = read(file);
+                        long hash = crc(bytes);
+                        Baseline before = baseline.get(name);
+                        if (before != null && before.fileHash == hash) {
+                            continue;
+                        }
+                        List<Class<?>> classes = loaded.get(name);
+                        if (classes == null) {
+                            if (before != null && before.info != null) {
+                                notLoaded++; // changed, but loads the new version when first used
+                            }
+                            baseline.put(name, new Baseline(hash, ClassInfo.parse(bytes)));
+                            continue;
+                        }
+                        ClassInfo after = null;
+                        for (Class<?> type : classes) {
+                            ClassInfo beforeInfo = before == null ? null : before.info;
+                            if (beforeInfo == null) {
+                                // No usable record: read the class as it was loaded (from its jar or directory).
+                                byte[] original = originals.of(type);
+                                if (original != null && crc(original) == hash) {
+                                    continue; // the same bytes the JVM runs: not a change
+                                }
+                                beforeInfo = original == null ? null : ClassInfo.parse(original);
+                            }
+                            if (after == null) {
+                                after = ClassInfo.parse(bytes);
+                            }
+                            changes.add(new Change(type, bytes, beforeInfo, after));
+                        }
+                        if (after == null) {
+                            baseline.put(name, new Baseline(hash, ClassInfo.parse(bytes)));
+                        }
+                    }
                 }
-                for (File file : classFiles(dir)) {
-                    String name = className(dir, file);
-                    byte[] bytes = read(file);
-                    long hash = crc(bytes);
-                    Baseline before = baseline.get(name);
-                    if (before != null && before.fileHash == hash) {
-                        continue;
-                    }
-                    ClassInfo after = ClassInfo.parse(bytes);
-                    List<Class<?>> classes = loaded.get(name);
-                    if (classes == null) {
-                        notLoaded++; // loads the new version when first used
-                        baseline.put(name, new Baseline(hash, after));
-                        continue;
-                    }
-                    for (Class<?> type : classes) {
-                        changes.add(new Change(type, bytes, before == null ? null : before.info, after));
-                    }
-                }
+            } finally {
+                originals.close();
             }
             if (changes.isEmpty()) {
                 return new Actions.Result("No changed classes to reload in " + dirs

@@ -24,6 +24,12 @@ final class Tools {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
+    private static final String WAITS = "Waits first (up to timeoutMs) until the component is visible, enabled, "
+            + "editable where needed, and not blocked by a modal dialog or busy overlay, so no wait_for is needed "
+            + "for a component that is about to become usable.";
+    private static final String TIMEOUT_PROPERTY =
+            "\"timeoutMs\":{\"type\":\"integer\",\"description\":\"How long to wait for the component to become usable (default 10000)\"}";
+
     private final Apps apps;
     private final McpJsonMapper json;
     private final List<SyncToolSpecification> specs = new ArrayList<>();
@@ -136,7 +142,7 @@ final class Tools {
                 Click a component like a user would. Buttons, checkboxes and menu items (even inside \
                 closed menus) are activated directly; other components receive real mouse events. \
                 For tables, lists and trees pass `row` (and `col` for tables). Use clickCount=2 for \
-                double-click, button=right for context menus. Returns the new snapshot.""", """
+                double-click, button=right for context menus. %WAITS% Returns the new snapshot.""", """
                 {"type":"object","properties":{
                   "ref":{"type":"string"},
                   "row":{"type":"integer","description":"Row (table/tree) or index (list) to click"},
@@ -144,29 +150,32 @@ final class Tools {
                   "clickCount":{"type":"integer","description":"2 for double-click"},
                   "button":{"type":"string","enum":["left","right"]},
                   "x":{"type":"integer","description":"Explicit x inside the component"},
-                  "y":{"type":"integer","description":"Explicit y inside the component"}
-                },"required":["ref"]}""", args -> text(apps.current().post("/click", params(args), DEFAULT_TIMEOUT)));
+                  "y":{"type":"integer","description":"Explicit y inside the component"},
+                  %TIMEOUT%
+                },"required":["ref"]}""", args -> text(apps.current().post("/click", params(args), actionTimeout(args))));
 
         tool("type_text", """
                 Set the text of a text field, text area, password field, spinner or editable combo box. \
                 Replaces the content unless append=true; submit=true also presses Enter (fires the \
-                field's action). Returns the new snapshot.""", """
+                field's action). %WAITS% Returns the new snapshot.""", """
                 {"type":"object","properties":{
                   "ref":{"type":"string"},
                   "text":{"type":"string"},
                   "submit":{"type":"boolean"},
-                  "append":{"type":"boolean"}
-                },"required":["ref","text"]}""", args -> text(apps.current().post("/type", params(args), DEFAULT_TIMEOUT)));
+                  "append":{"type":"boolean"},
+                  %TIMEOUT%
+                },"required":["ref","text"]}""", args -> text(apps.current().post("/type", params(args), actionTimeout(args))));
 
         tool("select_option", """
                 Select an entry by visible text (`value`) or position (`index`) in a combo box, list, \
                 tab pane, table (row) or tree. For trees, value is a path like "Root/Child/Leaf". \
-                Returns the new snapshot.""", """
+                %WAITS% Returns the new snapshot.""", """
                 {"type":"object","properties":{
                   "ref":{"type":"string"},
                   "value":{"type":"string"},
-                  "index":{"type":"integer"}
-                },"required":["ref"]}""", args -> text(apps.current().post("/select", params(args), DEFAULT_TIMEOUT)));
+                  "index":{"type":"integer"},
+                  %TIMEOUT%
+                },"required":["ref"]}""", args -> text(apps.current().post("/select", params(args), actionTimeout(args))));
 
         tool("wait_for", """
                 Wait until `text` appears anywhere in the snapshot (or disappears with gone=true). \
@@ -190,9 +199,12 @@ final class Tools {
                 changed (constructor, initComponents, @PostConstruct...), that screen is rebuilt. Changes \
                 that add or remove methods or fields (including new lambdas) cannot be applied on a \
                 standard JVM: the result explains which, and nothing is changed; then restart the \
-                application. Returns the new snapshot.""", """
+                application. Only classes whose code really changed are reloaded, even if the build \
+                rewrote all class files. In a multi-module project, a module that the application runs \
+                from its jar needs classesDir (or start the application with \
+                mvn swing2mcp:run -Dswing2mcp.classesDirs=...). Returns the new snapshot.""", """
                 {"type":"object","properties":{
-                  "classesDir":{"type":"string","description":"Directory with compiled classes, if the application was not started from it (e.g. it runs from a jar)"},
+                  "classesDir":{"type":"string","description":"Directory with compiled classes, if the application was not started from it (e.g. a module that runs from its jar)"},
                   "rebuild":{"type":"string","enum":["auto","none","all"],"description":"auto (default): rebuild screens whose construction code changed; all: rebuild every open screen of a reloaded class; none: never"},
                   "refs":{"type":"array","items":{"type":"string"},"description":"Refs of screens to rebuild in any case"}
                 }}""", args -> {
@@ -225,8 +237,8 @@ final class Tools {
     private void tool(String name, String description, String schema, Handler handler) {
         Tool tool = Tool.builder()
                 .name(name)
-                .description(description)
-                .inputSchema(json, schema)
+                .description(description.replace("%WAITS%", WAITS))
+                .inputSchema(json, schema.replace("%TIMEOUT%", TIMEOUT_PROPERTY))
                 .build();
         specs.add(SyncToolSpecification.builder()
                 .tool(tool)
@@ -267,6 +279,12 @@ final class Tools {
             throw new IllegalArgumentException("Missing argument: " + key);
         }
         return value.toString();
+    }
+
+    /** Room for the wait before the action plus the action itself. */
+    private static Duration actionTimeout(Map<String, Object> args) {
+        Duration needed = Duration.ofMillis(num(args, "timeoutMs", 10000)).plusSeconds(20);
+        return needed.compareTo(DEFAULT_TIMEOUT) > 0 ? needed : DEFAULT_TIMEOUT;
     }
 
     private static long num(Map<String, Object> args, String key, long def) {
