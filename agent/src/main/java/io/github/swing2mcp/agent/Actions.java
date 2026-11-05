@@ -4,6 +4,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
+import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenuItem;
@@ -13,11 +14,14 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JTree;
 import javax.swing.ListCellRenderer;
+import javax.swing.JRootPane;
 import javax.swing.MenuSelectionManager;
+import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dialog;
 import java.awt.EventQueue;
 import java.awt.Point;
@@ -32,14 +36,19 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * User-like actions. Validation runs synchronously on the EDT; the action itself is
- * queued with invokeLater so that an action which opens a modal dialog does not block
- * the agent. Afterwards we wait for the EDT to drain before reporting back.
+ * User-like actions. Before acting we wait (up to timeoutMs) until the component can take
+ * input: showing, enabled, editable where relevant, and not blocked by a modal dialog or a busy
+ * glass pane. Validation runs synchronously on the EDT; the action itself is queued with
+ * invokeLater so that an action which opens a modal dialog does not block the agent.
+ * Afterwards we wait for the EDT to drain before reporting back.
  */
 final class Actions {
 
     private static final long SETTLE_TIMEOUT_MS = 5000;
     private static final long CHECK_TIMEOUT_MS = 3000;
+    /** How long an action waits for its component to become usable, unless timeoutMs is given. */
+    static final long DEFAULT_WAIT_MS = 10000;
+    private static final long POLL_MS = 100;
 
     private final RefRegistry refs;
 
@@ -66,7 +75,8 @@ final class Actions {
         final Integer x = optInt(p, "x");
         final Integer y = optInt(p, "y");
 
-        final Point point = Edt.call(new Callable<Point>() {
+        final StringBuilder waited = new StringBuilder();
+        final Point point = whenUsable(p, waited, new Callable<Point>() {
             public Point call() {
                 ensureUsable(c, c instanceof JMenuItem);
                 if (c instanceof AbstractButton && clickCount == 1 && !right && x == null && row == null) {
@@ -93,11 +103,11 @@ final class Actions {
                 }
                 return new Point(c.getWidth() / 2, c.getHeight() / 2);
             }
-        }, CHECK_TIMEOUT_MS);
+        });
 
         final String what = describe(c) + (row != null ? " row " + row + (col != null ? " col " + col : "") : "");
         if (point == null) {
-            return perform("Clicked " + what, new Runnable() {
+            return perform(waited + "Clicked " + what, new Runnable() {
                 public void run() {
                     if (c instanceof JMenuItem) {
                         MenuSelectionManager.defaultManager().clearSelectedPath();
@@ -106,7 +116,7 @@ final class Actions {
                 }
             });
         }
-        return perform((clickCount == 2 ? "Double-clicked " : right ? "Right-clicked " : "Clicked ") + what,
+        return perform(waited + (clickCount == 2 ? "Double-clicked " : right ? "Right-clicked " : "Clicked ") + what,
                 new Runnable() {
                     public void run() {
                         mouse(c, point, clickCount, right);
@@ -119,21 +129,22 @@ final class Actions {
         final String text = p.get("text") == null ? "" : p.get("text");
         final boolean submit = "true".equalsIgnoreCase(p.get("submit"));
         final boolean append = "true".equalsIgnoreCase(p.get("append"));
-        Edt.call(new Callable<Object>() {
+        final StringBuilder waited = new StringBuilder();
+        whenUsable(p, waited, new Callable<Object>() {
             public Object call() {
                 ensureUsable(c, false);
                 if (c instanceof JTextComponent) {
                     if (!((JTextComponent) c).isEditable()) {
-                        throw new IllegalArgumentException(describe(c) + " is read-only");
+                        throw new NotReady(describe(c) + " is read-only");
                     }
                 } else if (!(c instanceof JSpinner) && !(c instanceof JComboBox && ((JComboBox<?>) c).isEditable())) {
                     throw new IllegalArgumentException(describe(c) + " does not accept text; use click or select_option");
                 }
                 return null;
             }
-        }, CHECK_TIMEOUT_MS);
+        });
 
-        return perform((append ? "Appended text to " : "Typed into ") + describe(c) + (submit ? " and pressed Enter" : ""),
+        return perform(waited + (append ? "Appended text to " : "Typed into ") + describe(c) + (submit ? " and pressed Enter" : ""),
                 new Runnable() {
                     public void run() {
                         c.requestFocusInWindow();
@@ -178,7 +189,8 @@ final class Actions {
             throw new IllegalArgumentException("select needs either value or index");
         }
         final AtomicReference<Runnable> action = new AtomicReference<Runnable>();
-        final String chosen = Edt.call(new Callable<String>() {
+        final StringBuilder waited = new StringBuilder();
+        final String chosen = whenUsable(p, waited, new Callable<String>() {
             public String call() {
                 ensureUsable(c, false);
                 if (c instanceof JComboBox) {
@@ -218,7 +230,7 @@ final class Actions {
                     }
                     final int i = pick(items, value, index);
                     if (!tabs.isEnabledAt(i)) {
-                        throw new IllegalArgumentException("Tab " + Text.quote(items.get(i)) + " is disabled");
+                        throw new NotReady("Tab " + Text.quote(items.get(i)) + " is disabled");
                     }
                     action.set(new Runnable() {
                         public void run() {
@@ -256,8 +268,8 @@ final class Actions {
                 }
                 throw new IllegalArgumentException(describe(c) + " does not support select; use click");
             }
-        }, CHECK_TIMEOUT_MS);
-        return perform("Selected " + Text.quote(chosen) + " in " + describe(c), action.get());
+        });
+        return perform(waited + "Selected " + Text.quote(chosen) + " in " + describe(c), action.get());
     }
 
     // ---------------------------------------------------------------------------------
@@ -282,7 +294,8 @@ final class Actions {
         }
         StringBuilder sb = new StringBuilder(description);
         if (failure.get() != null) {
-            sb.append("\nAction failed: ").append(failure.get());
+            sb.append("\nAction failed, the application threw an exception:\n")
+                    .append(ErrorMonitor.describe("on the UI thread", failure.get()).trim());
         }
         if (!settled) {
             sb.append("\nThe UI thread is still busy after ").append(SETTLE_TIMEOUT_MS)
@@ -303,20 +316,110 @@ final class Actions {
         return c;
     }
 
+    /** The component cannot take input yet; the action waits and checks again. */
+    static final class NotReady extends IllegalArgumentException {
+        /** What to do if it stays this way, added to the error after the wait. */
+        final String hint;
+
+        NotReady(String message) {
+            this(message, "");
+        }
+
+        NotReady(String message, String hint) {
+            super(message);
+            this.hint = hint;
+        }
+    }
+
+    /**
+     * Runs the check on the EDT until it no longer throws {@link NotReady} or the wait times out.
+     * Other exceptions (wrong component type, bad index) fail at once. When the action had to wait,
+     * {@code waited} receives a note for the result.
+     */
+    static <T> T whenUsable(Map<String, String> p, StringBuilder waited, Callable<T> check) throws Exception {
+        long timeout = Math.max(0, intParam(p, "timeoutMs", (int) DEFAULT_WAIT_MS));
+        long start = System.currentTimeMillis();
+        String firstReason = null;
+        while (true) {
+            try {
+                T result = Edt.call(check, CHECK_TIMEOUT_MS);
+                if (firstReason != null) {
+                    waited.append("Waited ").append(System.currentTimeMillis() - start).append(" ms (")
+                            .append(firstReason).append("). ");
+                }
+                return result;
+            } catch (Exception e) {
+                if (!(e instanceof NotReady) && !(e instanceof Edt.BusyException)) {
+                    throw e;
+                }
+                if (firstReason == null) {
+                    firstReason = e instanceof NotReady ? e.getMessage() : "the UI thread was busy";
+                }
+                long elapsed = System.currentTimeMillis() - start;
+                if (elapsed >= timeout) {
+                    if (e instanceof Edt.BusyException) {
+                        throw e;
+                    }
+                    String reason = e.getMessage();
+                    throw new IllegalArgumentException(Character.toUpperCase(reason.charAt(0)) + reason.substring(1)
+                            + " (still after waiting " + elapsed + " ms)"
+                            + ((NotReady) e).hint);
+                }
+                sleep(Math.min(POLL_MS, timeout - elapsed));
+            }
+        }
+    }
+
     /** Must be called on the EDT. */
     private static void ensureUsable(Component c, boolean allowHidden) {
         if (!allowHidden && !c.isShowing()) {
-            throw new IllegalArgumentException(describe(c) + " is not visible; take a new snapshot");
+            throw new NotReady(describe(c) + " is not visible", "; if it should be, take a new snapshot");
         }
         if (!c.isEnabled()) {
-            throw new IllegalArgumentException(describe(c) + " is disabled");
+            throw new NotReady(describe(c) + " is disabled");
         }
         Dialog modal = SnapshotBuilder.activeModalDialog();
         Window window = windowOf(c);
         if (modal != null && window != null && !isSameOrOwnedBy(window, modal)) {
-            throw new IllegalArgumentException("Blocked by modal dialog " + Text.quote(modal.getTitle())
-                    + "; close it first");
+            throw new NotReady("blocked by modal dialog " + Text.quote(modal.getTitle()), "; close it first");
         }
+        if (!allowHidden) {
+            Component glass = blockingGlassPane(c);
+            if (glass != null) {
+                throw new NotReady("blocked by a busy overlay (glass pane " + glass.getClass().getName() + ")");
+            }
+        }
+    }
+
+    /**
+     * A visible glass pane over the component that takes mouse input, as busy overlays do (wait
+     * cursor, or mouse listeners that swallow clicks). Glass panes of internal frames are only
+     * counted with a wait cursor: Swing gives them a mouse listener to activate the frame on click.
+     */
+    private static Component blockingGlassPane(Component c) {
+        // From the innermost root pane (e.g. of an internal frame) out to the window's.
+        List<JRootPane> roots = new ArrayList<JRootPane>();
+        for (Component at = c; at != null && roots.size() < 10; at = at.getParent()) {
+            if (at instanceof JRootPane) {
+                roots.add((JRootPane) at);
+            }
+        }
+        for (JRootPane root : roots) {
+            Component glass = root.getGlassPane();
+            if (glass == null || !glass.isVisible() || SwingUtilities.isDescendingFrom(c, glass)) {
+                continue;
+            }
+            boolean busy = glass.isCursorSet() && glass.getCursor().getType() == Cursor.WAIT_CURSOR;
+            boolean swallows = glass.getMouseListeners().length > 0 && !(root.getParent() instanceof JInternalFrame);
+            if (!busy && !swallows) {
+                continue;
+            }
+            Point center = SwingUtilities.convertPoint(c, c.getWidth() / 2, c.getHeight() / 2, glass);
+            if (glass.contains(center)) {
+                return glass;
+            }
+        }
+        return null;
     }
 
     /** Window of a component; for items in a closed menu, the window of the menu bar. */

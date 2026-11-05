@@ -65,7 +65,19 @@ to the running application. The application does not close and the logged-in ses
 - Adding a new method/field or a new lambda requires a restart on a standard JVM; the tool says so clearly
   without applying anything.
 
-If the application runs from a jar, pass the folder of the compiled classes: `classesDir=target/classes`.
+Only classes whose code really changed are reloaded, even when the build rewrote every class file.
+
+**Multi-module projects:** when the application is started from one module (e.g. the one with the main
+class), the other modules come from their jars in `~/.m2`. Put their compiled classes first on the
+classpath, and `hot_reload` picks up changes in those modules too:
+
+```
+mvn swing2mcp:run -Dswing2mcp.classesDirs=../core/target/classes,../ui/target/classes
+```
+
+Without it, or if the application runs from a jar, pass the folder of the compiled classes instead:
+`classesDir=../core/target/classes`. The classes as they were loaded are read from the jar, so the result is the
+same: only the changed classes are reloaded.
 
 ### Spring applications
 
@@ -84,6 +96,7 @@ works the same.
 | `-Dswing2mcp.javaHome=/jdk8` | Runs the application with a different Java (e.g. Maven on 17, the application on 8). |
 | `-Dswing2mcp.jvmArgs="-Xmx1g -Dprofile=dev"` | Extra JVM options. |
 | `-Dswing2mcp.args="..."` | Application arguments. |
+| `-Dswing2mcp.classesDirs=../core/target/classes,...` | Class folders of other modules, put before the jars (multi-module hot reload). |
 | `-Dswing2mcp.agent=false` | Runs plainly, without the agent. |
 
 ### Requirements
@@ -127,6 +140,11 @@ Example snapshot:
 ```
 
 `field=` is the name of the Java field that holds the component in the application; it makes matching the screen with the code easier.
+
+Actions (`click`, `type_text`, `select_option`) first wait until the component can take input: visible,
+enabled, editable, not blocked by a modal dialog or a busy overlay (up to `timeoutMs`, default 10 s). If
+the application throws an exception that it does not handle, during the action or since the last call,
+the tool result says so, with the stack trace, so the AI tool notices that its change broke something.
 
 ## How does it work?
 

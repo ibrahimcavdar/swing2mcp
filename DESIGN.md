@@ -46,6 +46,10 @@ over MCP, without touching the product's code.
 | D20 | Changes are detected **at method level** (bytecode digest; the constant pool and line numbers do not affect it). A screen is rebuilt only if its setup code changed (the constructor, the init method and what they call, the constructors of anonymous classes they create); otherwise the screen state is kept | So that data typed in during the AI's "fix the bug → try again" loop is not lost. |
 | D21 | Rebuild order: (1) in place, by calling the class's init method again (`initComponents`, `jbInit`, `$$$setupUI$$$`, `@PostConstruct`...), (2) if there is no init method, a new instance via the no-argument constructor and updating the field references in the parent components, (3) if neither exists, a "reopen it/restart" message | Rebuilding in place does not replace the object, so references elsewhere (Spring included) do not break. |
 | D22 | Structural changes (adding/removing methods or fields, new lambdas, a changed superclass) are rejected on a standard JVM **without applying anything**, and the change is explained; if JetBrains Runtime (`-XX:+AllowEnhancedClassRedefinition`) or DCEVM is detected, they are applied. All classes are applied in one go (all or nothing) | Half-applied code leads to inconsistent behavior; the AI must know what to do (rewrite / restart). |
+| D23 | When hot reload has no recorded version of a loaded class, it reads the class **as it was loaded, from its code source** (jar entry, or a class file older than the JVM). A directory that is not on the classpath is never taken as the baseline. In multi-module projects `run` takes an **explicit** `-Dswing2mcp.classesDirs` list that goes before the jars; sibling modules are not guessed | A build rewrites every class file of a module; without a baseline everything looked changed (all loaded classes reloaded, unchanged screens rebuilt). Guessing other modules' folders could pick the wrong ones; an explicit list is visible and predictable. |
+| D24 | Actions **wait first** (default 10 s, `timeoutMs`) until the component is showing, enabled, editable where needed, not blocked by a modal dialog or a busy glass pane, and the UI thread answers. A glass pane counts as busy if it is visible over the component and has a wait cursor or mouse listeners (internal frames: only a wait cursor, since Swing gives their glass pane a listener). The result says how long it waited and why | Right after `wait_for` finds a field, the screen may still be blocked (e.g. a loading dialog). Playwright-style actionability waits remove that race without extra calls from the AI. |
+| D25 | Uncaught exceptions are **reported in the next tool result** (actions, snapshot, wait_for, errors), each once, with a short stack trace. The agent wraps the default uncaught exception handler and passes every exception on (to the previous handler, or prints it like the JVM); a handler that the application installs later, or sets on the UI thread, is wrapped on the next request. An exception thrown inside the action itself (e.g. a button's listener) is reported as "Action failed". Log output is not captured | The AI must notice that its change broke something; the application's own error handling must stay as it was. Logging frameworks differ too much to capture without dependencies. |
+| D26 | Snapshot: refs are assigned by **identity**, not `equals`; a `Window` whose children belong to another container (a framework's window facade for an internal frame) is skipped; a label subclass used as a field's name is hidden like a plain `JLabel`; a custom-painted leaf component shows the text of a public `getText()`/`getLabel()`/`getTitle()` found by reflection | Seen in a large legacy application whose framework has such facades (with `equals`/`hashCode` delegated) and its own label class; the output got twice as long and less clear. Reflection keeps the agent free of compile-time dependencies. |
 
 ## Components
 
@@ -101,7 +105,8 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
 | M3b | Login macro: automatic login on restart |
 | **M4** ✅ | Spring: Spring demo (demo-spring); the agent finds the context itself; `spring_beans`, `open_spring_bean` (opening a screen without navigating the menu) |
 | **M5** ✅ | Hot reload: loading compiled classes into the running JVM (`hot_reload`); rebuilding screens whose setup code changed, keeping the screen state for other changes |
-| M6 | Windows-specific topics (DPI, Robot fallback, path/space problems) |
+| **M6** ✅ | A fast, trustworthy edit → reload → check loop on a large legacy application: multi-module hot reload, waiting before actions, application errors in tool results, snapshot fixes |
+| M7 | Like a real user: real key events, reading tables and trees, dialogs |
 | (open) | Opening a panel by class name in applications without Spring (`open_panel(class)`) |
 
 ## M1 results (2026-10-29, macOS)
@@ -163,7 +168,7 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
   were loaded; `ReportPanel`, which has no init method, was replaced with a new instance and its reference updated;
   for the main window built in the constructor, a "close and reopen it" message.
 - Known limits: static initializers do not run again; in multi-module projects, classes in another module's
-  jar are not loaded (only class folders); new Spring beans are not added; when rebuilding
+  jar are not loaded (only class folders; addressed in M6); new Spring beans are not added; when rebuilding
   in place, listeners that the init method registers elsewhere may be duplicated. The structural change route
   with JetBrains Runtime was not tried.
 
@@ -190,6 +195,32 @@ JDK 21 (Temurin), JDK 8u504, Maven 3.9.16; the MCP server was driven with `scrip
 - `mcp-steps.py` read stdin as cp1254 on Windows (Turkish steps were garbled); fixed to read UTF-8 (including files
   with a BOM), and `--save-images` was added.
 - `scripts/windows-manual-test.ps1` for the checks to do by hand (Ctrl+C, display scale, AI tool).
+
+## M6 results (2026-11-05, Windows 11)
+
+Tried on a large legacy Swing application (Java 8, Spring Boot 2.1, a custom look-and-feel and window
+framework, two Maven modules: the shared code and a launcher module with the main class), started with
+`mvn swing2mcp:run` from the launcher module without changing its poms. The test change was a message
+dialog in a button handler of the shared module (compile: `mvn -o compile` of that module, ~9 s).
+
+- **Multi-module hot reload.** Before: the shared module came from its jar in `~/.m2`, `classesDir` had no
+  baseline, so all 261 loaded classes of the module were reloaded (19 s) and 4 unchanged screens were
+  rebuilt. Now:
+  - same start, `hot_reload classesDir=<module>/target/classes`: **1 class** reloaded in 0.6 s, no screen
+    rebuilt (the original bytes come from the jar);
+  - started with `-Dswing2mcp.classesDirs=<module>/target/classes`: `hot_reload` without arguments, again
+    1 class; reverting the change, 1 class.
+- **Waiting before actions.** The login field appears while a modal "loading" dialog is still open;
+  `type_text` now reports `Waited 226 ms (blocked by modal dialog "")` and types. Buttons inside the
+  framework's internal frames (visible glass pane with a mouse listener) are not taken as blocked.
+- **Application errors.** A test handler threw in the click handler, in an `invokeLater` and in a new thread:
+  the click result listed all three with stack traces; the next snapshot listed none. The application had no
+  handler of its own, and the exceptions were still printed to the console as without the agent.
+- **Snapshot.** Internal frames are listed once (the framework's window facade delegated `equals`/`hashCode`
+  to the internal frame, so it even got the same ref). Labels of the framework's label class that name a
+  field no longer show up as "custom-painted".
+- Regression on demo-app (Java 8): login, disabled button and modal dialog time-outs with clear messages,
+  hot reload of `saveCustomer`.
 
 ## Risks / to be verified
 

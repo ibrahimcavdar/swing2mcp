@@ -1,4 +1,4 @@
-# Session summary (M1–M5, 2026-10-28 → 2026-11-02)
+# Session summary (M1–M6, 2026-10-28 → 2026-11-05)
 
 This file was written to continue the project on another computer with another AI agent. The first
 session took place on macOS; the next step is testing on Windows (see [WINDOWS-TEST.md](../WINDOWS-TEST.md)).
@@ -50,17 +50,18 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open que
 | `m4` | demo-spring; the agent finds the Spring context itself (static field, shutdown hook, object graph); `spring_beans`, `open_spring_bean` | run (Java 8) and attach (Java 21); polite error in an application without Spring |
 | `m5` | `hot_reload`: finds changed classes at method level and applies them; rebuilds only the screen whose setup code changed; rejects structural changes with an explanation | run (Java 8), attach Spring (Java 21), `java -jar` + `classesDir` (Java 21); the M1–M4 flows were run again |
 | `m5.1` | Windows test: fix for attaching to Java 8, a clear hot reload message when compiling with a different JDK, a manual test script | Windows 11: steps 2–7 with `mcp-steps.py`; Ctrl+C, screenshot and AI tool by the user |
+| `m6` | Fast loop on a large legacy application: multi-module hot reload (original bytes from the jar, `-Dswing2mcp.classesDirs`), actions wait until the component is usable, uncaught application exceptions in tool results, snapshot fixes (window facades, label subclasses, refs by identity) | Windows 11, Java 8, a large legacy Swing application (two modules, Spring Boot 2.1) with `mcp-steps.py`; regression on demo-app |
 
 ## Status and next step
 
-- All work is on `main`; `m5.1` = the latest milestone.
+- `m6` (2026-11-05) was done on the `m6` branch; details and numbers: DESIGN.md, "M6 results".
+- **Next step:** m7 (real key events, reading tables and trees, dialogs), then the open-source release.
+- All earlier work is on `main`; `m5.1` was the latest milestone before m6.
 - **Windows (2026-11-03):** WINDOWS-TEST steps 2–7 were tried by an AI agent with `mcp-steps.py`
   on Windows 11 and passed. Two bugs were fixed (Windows' success message when attaching to Java 8;
   the confusing hot reload rejection after compiling with a different JDK). Details: DESIGN.md, "Windows test results".
 - The user tried the things that need a person at the screen with `scripts\windows-manual-test.ps1` (Ctrl+C,
   screenshot, a real AI tool); the first AI attempts worked, the MCP connection had no problems. Tag: `m5.1`.
-- **Next step:** Try the AI side for longer, then optionally a real company
-  application.
 - Windows-specific precautions taken in advance: a manifest jar for long classpaths (`run`); a quoted agent path
   in `JAVA_TOOL_OPTIONS` for user folders with spaces (`launch_app`); the MCP SDK
   uses UTF-8 on stdio (no risk for Turkish characters); literal strings in TOML (backslashes).
@@ -68,7 +69,6 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open que
 ## Open questions / possible next milestones
 
 - User folder with spaces on Windows (not tried).
-- Multi-module projects: loading classes from another module's jar with hot reload.
 - Real key events (`type_text` currently uses `setText`; KeyListener/InputVerifier
   may not be triggered) and `press_key` (Enter, Esc, Ctrl+S).
 - Opening a panel by class name in applications without Spring (`open_panel`).
@@ -91,6 +91,10 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open que
 - demo-spring needs the `javax.annotation-api` dependency for Java 11+ (`@PostConstruct`).
 - In the macOS tests, background processes ignore SIGINT. The Ctrl+C behavior was tested with
   SIGTERM.
+- Code that runs on the EDT must never loop on a condition that may not change: during m6 a glass pane
+  check walked from a window's root pane back to the same root pane and froze the application.
+- The running application keeps the agent jar in `~/.m2` open; on Windows `mvn install` may fail to replace it
+  while the application runs. Stop the application before rebuilding the agent.
 - The hot reload baseline is recorded in the background when the agent starts. Class files written after
   the JVM started are counted as "unknown" and applied on the first reload.
 
