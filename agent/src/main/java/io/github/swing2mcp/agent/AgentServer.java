@@ -40,8 +40,14 @@ import java.util.concurrent.ThreadFactory;
  *   GET  /snapshot?window&maxRows&expandMenus
  *   GET  /screenshot?ref               PNG
  *   POST /click  ref, button, clickCount, row, col, x, y
- *   POST /type   ref, text, submit, append
+ *   POST /type   ref, text, submit, append, mode (keys | set | os)
  *   POST /select ref, value | index
+ *   POST /key    key, ref, mode       real key presses, e.g. Enter, Ctrl+S, "Tab Tab"
+ *   POST /expand ref, path, collapse  expand or collapse a tree node
+ *   POST /dialog ref, button, text, path   answer a dialog (message box, input, file chooser)
+ *   POST /menu   path, ref, context   open a menu path ("File > Open") and click its last item
+ *   (click, type, select and key also take dialog=<button>: answer the dialog the action opens)
+ *   GET  /read   ref, start, limit, find, columns, path, depth   rows/items/nodes, paged
  *   GET  /wait?text&gone&timeoutMs
  *   GET  /spring/beans?filter          Spring beans, if a Spring context can be found
  *   POST /spring/open  name            show a window/panel bean directly
@@ -53,7 +59,11 @@ final class AgentServer {
     static final String TOKEN_HEADER = "X-Swing2mcp-Token";
     private static final long SNAPSHOT_TIMEOUT_MS = 5000;
 
+    private static final java.util.Set<String> ACTIONS = new java.util.HashSet<String>(java.util.Arrays.asList(
+            "/click", "/type", "/select", "/key", "/expand", "/dialog", "/menu", "/spring/open", "/reload"));
+
     private final String token;
+    private final Object actionLock = new Object();
     private final RefRegistry refs = new RefRegistry();
     private final Actions actions = new Actions(refs);
     private final SpringSupport spring;
@@ -101,28 +111,63 @@ final class AgentServer {
             Map<String, String> params = params(exchange);
             String path = exchange.getRequestURI().getPath();
             ErrorMonitor.get().check();
-            if ("/ping".equals(path)) {
-                text(exchange, 200, ping());
-            } else if ("/snapshot".equals(path)) {
-                text(exchange, 200, snapshot(params) + ErrorMonitor.get().takeReport());
-            } else if ("/screenshot".equals(path)) {
-                send(exchange, 200, "image/png", screenshot(params));
-            } else if ("/click".equals(path)) {
-                text(exchange, 200, afterAction(actions.click(params)));
-            } else if ("/type".equals(path)) {
-                text(exchange, 200, afterAction(actions.type(params)));
-            } else if ("/select".equals(path)) {
-                text(exchange, 200, afterAction(actions.select(params)));
-            } else if ("/spring/beans".equals(path)) {
-                text(exchange, 200, spring.beans(params.get("filter")));
-            } else if ("/spring/open".equals(path)) {
-                text(exchange, 200, afterAction(spring.open(params.get("name"))));
-            } else if ("/reload".equals(path)) {
-                text(exchange, 200, afterAction(hotReload.reload(params)));
-            } else if ("/wait".equals(path)) {
-                text(exchange, 200, waitFor(params) + ErrorMonitor.get().takeReport());
-            } else {
-                text(exchange, 404, "unknown endpoint " + path);
+            // Actions run one at a time: their steps must not interleave on the UI thread
+            // (parallel calls could otherwise type into the field another call just focused).
+            Object lock = ACTIONS.contains(path) ? actionLock : new Object();
+            synchronized (lock) {
+                if ("/ping".equals(path)) {
+                    text(exchange, 200, ping());
+                } else if ("/snapshot".equals(path)) {
+                    text(exchange, 200, snapshot(params) + ErrorMonitor.get().takeReport());
+                } else if ("/screenshot".equals(path)) {
+                    send(exchange, 200, "image/png", screenshot(params));
+                } else if ("/click".equals(path)) {
+                    action(exchange, actions.answering(params, new Callable<Actions.Result>() {
+                        public Actions.Result call() throws Exception {
+                            return actions.click(params);
+                        }
+                    }));
+                } else if ("/type".equals(path)) {
+                    action(exchange, actions.answering(params, new Callable<Actions.Result>() {
+                        public Actions.Result call() throws Exception {
+                            return actions.type(params);
+                        }
+                    }));
+                } else if ("/select".equals(path)) {
+                    action(exchange, actions.answering(params, new Callable<Actions.Result>() {
+                        public Actions.Result call() throws Exception {
+                            return actions.select(params);
+                        }
+                    }));
+                } else if ("/expand".equals(path)) {
+                    action(exchange, actions.expand(params));
+                } else if ("/read".equals(path)) {
+                    text(exchange, 200, read(params) + ErrorMonitor.get().takeReport());
+                } else if ("/key".equals(path)) {
+                    action(exchange, actions.answering(params, new Callable<Actions.Result>() {
+                        public Actions.Result call() throws Exception {
+                            return actions.pressKey(params);
+                        }
+                    }));
+                } else if ("/menu".equals(path)) {
+                    action(exchange, actions.answering(params, new Callable<Actions.Result>() {
+                        public Actions.Result call() throws Exception {
+                            return actions.selectMenu(params);
+                        }
+                    }));
+                } else if ("/dialog".equals(path)) {
+                    action(exchange, actions.handleDialog(params));
+                } else if ("/spring/beans".equals(path)) {
+                    text(exchange, 200, spring.beans(params.get("filter")));
+                } else if ("/spring/open".equals(path)) {
+                    text(exchange, 200, afterAction(spring.open(params.get("name"))));
+                } else if ("/reload".equals(path)) {
+                    text(exchange, 200, afterAction(hotReload.reload(params)));
+                } else if ("/wait".equals(path)) {
+                    text(exchange, 200, waitFor(params) + ErrorMonitor.get().takeReport());
+                } else {
+                    text(exchange, 404, "unknown endpoint " + path);
+                }
             }
         } catch (IllegalArgumentException e) {
             text(exchange, 400, e.getMessage() + ErrorMonitor.get().takeReport());
@@ -225,6 +270,22 @@ final class AgentServer {
         }, SNAPSHOT_TIMEOUT_MS);
     }
 
+    private String read(final Map<String, String> params) throws Exception {
+        final String ref = params.get("ref");
+        if (Text.isBlank(ref)) {
+            throw new IllegalArgumentException("Missing parameter: ref");
+        }
+        return Edt.call(new Callable<String>() {
+            public String call() {
+                Component c = refs.resolve(ref.trim());
+                if (c == null) {
+                    throw new IllegalArgumentException("Unknown or disposed ref " + ref + "; take a new snapshot");
+                }
+                return Items.read(c, params);
+            }
+        }, SNAPSHOT_TIMEOUT_MS);
+    }
+
     private byte[] screenshot(Map<String, String> params) throws Exception {
         final String ref = params.get("ref");
         BufferedImage image = Edt.call(new Callable<BufferedImage>() {
@@ -248,6 +309,11 @@ final class AgentServer {
             }
         }, SNAPSHOT_TIMEOUT_MS);
         return Screenshots.png(image);
+    }
+
+    /** Sends an action's result; one that could not be done is an error (400), with the snapshot. */
+    private void action(HttpExchange exchange, Actions.Result result) throws IOException {
+        text(exchange, result.failed ? 400 : 200, afterAction(result));
     }
 
     /** The action's message, the exceptions it caused in the application, and the new snapshot. */

@@ -16,9 +16,16 @@ final class AgentClient {
 
     static final String TOKEN_HEADER = "X-Swing2mcp-Token";
 
-    static final class AgentException extends IOException {
+    static class AgentException extends IOException {
         AgentException(String message) {
             super(message);
+        }
+    }
+
+    /** The application ended while a call was in progress (e.g. the call clicked "Exit"). */
+    static final class AppExited extends AgentException {
+        AppExited(long pid) {
+            super("The application (pid " + pid + ") exited during this call.");
         }
     }
 
@@ -67,6 +74,9 @@ final class AgentClient {
             Thread.currentThread().interrupt();
             throw new IOException("interrupted", e);
         } catch (IOException e) {
+            if (exited()) {
+                throw new AppExited(pid);
+            }
             throw new AgentException("Cannot reach the application (pid " + pid + "): " + e.getMessage()
                     + ". It may have exited; use list_apps or launch_app.");
         }
@@ -74,6 +84,18 @@ final class AgentClient {
             throw new AgentException(new String(response.body(), StandardCharsets.UTF_8));
         }
         return response.body();
+    }
+
+    /** True if the process is gone or ends within a few seconds (shutdown hooks may still run). */
+    private boolean exited() {
+        return ProcessHandle.of(pid).map(handle -> {
+            try {
+                handle.onExit().get(5, java.util.concurrent.TimeUnit.SECONDS);
+                return true;
+            } catch (Exception e) {
+                return !handle.isAlive();
+            }
+        }).orElse(true);
     }
 
     private static String encode(Map<String, ?> params) {

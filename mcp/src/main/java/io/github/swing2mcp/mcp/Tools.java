@@ -29,6 +29,9 @@ final class Tools {
             + "for a component that is about to become usable.";
     private static final String TIMEOUT_PROPERTY =
             "\"timeoutMs\":{\"type\":\"integer\",\"description\":\"How long to wait for the component to become usable (default 10000)\"}";
+    private static final String DIALOG_PROPERTY =
+            "\"dialog\":{\"type\":\"string\",\"description\":\"Answer the modal dialog this action opens with this button "
+            + "(text, or ok/yes/no/cancel); its message is reported. An error if no dialog opens within 3 s\"}";
 
     private final Apps apps;
     private final McpJsonMapper json;
@@ -123,7 +126,7 @@ final class Tools {
                 Prefer this over screenshot; use screenshot for custom-painted parts and layout.""", """
                 {"type":"object","properties":{
                   "window":{"type":"string","description":"Ref of a single window to describe"},
-                  "maxRows":{"type":"integer","description":"Rows/items listed per table, list or tree (default 20)"},
+                  "maxRows":{"type":"integer","description":"Rows/items listed per table or list (default 10; trees twice that). read_items reads the rest"},
                   "expandMenus":{"type":"boolean","description":"Also list items of closed menus"}
                 }}""", args -> text(apps.current().get("/snapshot", params(args), DEFAULT_TIMEOUT)));
 
@@ -139,43 +142,131 @@ final class Tools {
                 });
 
         tool("click", """
-                Click a component like a user would. Buttons, checkboxes and menu items (even inside \
-                closed menus) are activated directly; other components receive real mouse events. \
-                For tables, lists and trees pass `row` (and `col` for tables). Use clickCount=2 for \
+                Click a component like a user would, with real mouse press/release events: a focusable \
+                component takes the focus first (so the previous field's input verifier and focus-lost \
+                handlers run). Menu items, even inside closed menus, are activated directly. \
+                For tables, lists and trees pass `value` (the cell's text, the item's text, or a tree \
+                path like "Root/Child") or `row` (and `col` for tables). Use clickCount=2 for \
                 double-click, button=right for context menus. %WAITS% Returns the new snapshot.""", """
                 {"type":"object","properties":{
                   "ref":{"type":"string"},
+                  "value":{"type":"string","description":"Table: text of a cell to click (first match; limit with col). List: item text. Tree: node path, ancestors get expanded"},
                   "row":{"type":"integer","description":"Row (table/tree) or index (list) to click"},
                   "col":{"type":"integer","description":"Table column"},
+                  "header":{"type":"boolean","description":"Table: click the header of column col (e.g. to sort)"},
                   "clickCount":{"type":"integer","description":"2 for double-click"},
                   "button":{"type":"string","enum":["left","right"]},
                   "x":{"type":"integer","description":"Explicit x inside the component"},
                   "y":{"type":"integer","description":"Explicit y inside the component"},
+                  %DIALOG%,
                   %TIMEOUT%
                 },"required":["ref"]}""", args -> text(apps.current().post("/click", params(args), actionTimeout(args))));
 
         tool("type_text", """
-                Set the text of a text field, text area, password field, spinner or editable combo box. \
-                Replaces the content unless append=true; submit=true also presses Enter (fires the \
-                field's action). %WAITS% Returns the new snapshot.""", """
-                {"type":"object","properties":{
-                  "ref":{"type":"string"},
-                  "text":{"type":"string"},
-                  "submit":{"type":"boolean"},
-                  "append":{"type":"boolean"},
-                  %TIMEOUT%
-                },"required":["ref","text"]}""", args -> text(apps.current().post("/type", params(args), actionTimeout(args))));
-
-        tool("select_option", """
-                Select an entry by visible text (`value`) or position (`index`) in a combo box, list, \
-                tab pane, table (row) or tree. For trees, value is a path like "Root/Child/Leaf". \
+                Type into a text field, text area, password field, spinner or editable combo box like a \
+                user: the field gets the focus (the previous field's input verifier runs; if it refuses, \
+                nothing is typed and the result says why), the old text is selected and each character is \
+                sent as real key events, so key listeners, document filters and formatters run. Replaces \
+                the content unless append=true; submit=true then presses Enter. "\\n" types Enter and \
+                "\\t" types Tab (moves to the next field). Formatted fields and spinners commit on Enter \
+                or when the focus leaves them. The application window does not need to be in front. \
+                mode=set sets the text directly without key events (faster, but skips key listeners). \
                 %WAITS% Returns the new snapshot.""", """
                 {"type":"object","properties":{
                   "ref":{"type":"string"},
+                  "text":{"type":"string"},
+                  "submit":{"type":"boolean","description":"Press Enter afterwards"},
+                  "append":{"type":"boolean","description":"Keep the current text and type at its end"},
+                  "mode":{"type":"string","enum":["keys","set","os"],"description":"keys (default): key events inside the application; set: set the text directly; os: real keyboard through the operating system (brings the window to the front; rarely needed)"},
+                  %DIALOG%,
+                  %TIMEOUT%
+                },"required":["ref","text"]}""", args -> text(apps.current().post("/type", params(args), actionTimeout(args))));
+
+        tool("press_key", """
+                Press keys like a user: "Enter", "Escape", "Tab", "Shift+Tab", "Up", "F5", "Ctrl+S", \
+                "Alt+F4", or several separated by spaces ("Tab Tab Enter"). Keys go to the component \
+                that has the keyboard focus (marked "focused" in the snapshot), or to ref after focusing \
+                it, so key bindings, menu shortcuts, the default button and focus traversal work as for a \
+                user. Without ref, keys go to the open modal dialog if there is one. The application \
+                window does not need to be in front. The result says where the focus is afterwards. \
+                %WAITS% Returns the new snapshot.""", """
+                {"type":"object","properties":{
+                  "key":{"type":"string","description":"Key or chord, e.g. Enter, Escape, Ctrl+S, Shift+Tab, F2; several separated by spaces"},
+                  "ref":{"type":"string","description":"Component to focus first (default: the focused component)"},
+                  "mode":{"type":"string","enum":["keys","os"],"description":"keys (default): key events inside the application; os: real keyboard through the operating system (brings the window to the front)"},
+                  %DIALOG%,
+                  %TIMEOUT%
+                },"required":["key"]}""", args -> text(apps.current().post("/key", params(args), actionTimeout(args))));
+
+        tool("select_option", """
+                Select an entry by visible text (`value`) or position (`index`) in a combo box, list, \
+                tab pane, table or tree. Table: value is the text of any cell of the row (limit it to a \
+                column with col); the cell is selected as by a click. Tree: value is a path like \
+                "Root/Child/Leaf" (the root may be left out; " > " also separates); ancestors are expanded \
+                on the way, as a user would. %WAITS% Returns the new snapshot.""", """
+                {"type":"object","properties":{
+                  "ref":{"type":"string"},
                   "value":{"type":"string"},
-                  "index":{"type":"integer"},
+                  "index":{"type":"integer","description":"Position; for tables the row, for trees the visible row"},
+                  "col":{"type":"integer","description":"Table column to search in or select"},
+                  %DIALOG%,
                   %TIMEOUT%
                 },"required":["ref"]}""", args -> text(apps.current().post("/select", params(args), actionTimeout(args))));
+
+        tool("select_menu", """
+                Choose a menu item like a user: path such as "File > Export > PDF" in the window's menu \
+                bar. Menus are opened level by level, so code that fills or enables items when a menu \
+                opens runs; a disabled item is reported, not clicked. A path ending at a menu leaves it \
+                open. With context=true, ref is right-clicked and the path is chosen in the context menu \
+                that opens (without ref: in the context menu already open). ref without context picks \
+                the menu bar of that component's window or internal frame. %WAITS% Returns the new \
+                snapshot.""", """
+                {"type":"object","properties":{
+                  "path":{"type":"string","description":"Menu texts separated by >, e.g. File > Open"},
+                  "ref":{"type":"string","description":"Component to right-click (context=true), or one inside the window whose menu bar to use"},
+                  "context":{"type":"boolean","description":"Use the context (right-click) menu of ref"},
+                  %DIALOG%,
+                  %TIMEOUT%
+                },"required":["path"]}""", args -> text(apps.current().post("/menu", params(args), actionTimeout(args))));
+
+        tool("handle_dialog", """
+                Answer a dialog like a user: press one of its buttons by text or by role (ok, yes, no,                 cancel; open/save in file choosers; these work in any UI language), "close" for the                 window's close box. `text` first types the answer of an input dialog (or picks it in its                 combo box); `path` first puts a file or directory path into a file chooser and, unless                 button says otherwise, presses its Open/Save button. Without ref: the open modal dialog                 (or the newest dialog). The result repeats the dialog's title and message. To answer a                 dialog that an action will open, pass dialog=<button> to that action instead.                 %WAITS% Returns the new snapshot.""", """
+                {"type":"object","properties":{
+                  "button":{"type":"string","description":"Button text, or ok/yes/no/cancel/open/save, or close"},
+                  "text":{"type":"string","description":"Answer for an input dialog"},
+                  "path":{"type":"string","description":"File or directory for a file chooser"},
+                  "ref":{"type":"string","description":"The dialog (or any component in it); default: the open modal dialog"},
+                  %TIMEOUT%
+                }}""", args -> text(apps.current().post("/dialog", params(args), actionTimeout(args))));
+
+        tool("read_items", """
+                Read the contents of a table, list, tree or combo box, page by page, as the user sees \
+                them (the text the cells show, with the underlying value where it reads differently). \
+                The snapshot shows only the first rows. Table: rows from `start` (view order, as \
+                sorted/filtered on screen), optionally only some `columns`. Tree: without path, the \
+                visible rows; with `path`, that node and its descendants down to `depth` levels, read \
+                from the tree model without expanding anything (trees that load children on expand \
+                need expand_node first). `find` keeps only entries containing that text.""", """
+                {"type":"object","properties":{
+                  "ref":{"type":"string"},
+                  "start":{"type":"integer","description":"First row/item to return (default 0); with find in a table, list or combo: matches to skip"},
+                  "limit":{"type":"integer","description":"How many to return (default 50, max 1000)"},
+                  "find":{"type":"string","description":"Only entries containing this text (case-insensitive)"},
+                  "columns":{"type":"string","description":"Table: column names or indexes, comma-separated"},
+                  "path":{"type":"string","description":"Tree: node path like Root/Child"},
+                  "depth":{"type":"integer","description":"Tree with path: levels below the node (default 1)"}
+                },"required":["ref"]}""", args -> text(apps.current().get("/read", params(args), DEFAULT_TIMEOUT)));
+
+        tool("expand_node", """
+                Expand (or collapse) a tree node given by its path, like clicking its toggle: ancestors \
+                are expanded on the way and expansion listeners run, so trees that load children on \
+                expand fill in. Says if the application vetoed it. %WAITS% Returns the new snapshot.""", """
+                {"type":"object","properties":{
+                  "ref":{"type":"string","description":"The tree"},
+                  "path":{"type":"string","description":"Node path like Root/Child (the root may be left out)"},
+                  "collapse":{"type":"boolean","description":"Collapse instead of expand"},
+                  %TIMEOUT%
+                },"required":["ref","path"]}""", args -> text(apps.current().post("/expand", params(args), actionTimeout(args))));
 
         tool("wait_for", """
                 Wait until `text` appears anywhere in the snapshot (or disappears with gone=true). \
@@ -238,7 +329,7 @@ final class Tools {
         Tool tool = Tool.builder()
                 .name(name)
                 .description(description.replace("%WAITS%", WAITS))
-                .inputSchema(json, schema.replace("%TIMEOUT%", TIMEOUT_PROPERTY))
+                .inputSchema(json, schema.replace("%TIMEOUT%", TIMEOUT_PROPERTY).replace("%DIALOG%", DIALOG_PROPERTY))
                 .build();
         specs.add(SyncToolSpecification.builder()
                 .tool(tool)
@@ -246,6 +337,9 @@ final class Tools {
                     Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
                     try {
                         return handler.handle(args);
+                    } catch (AgentClient.AppExited e) {
+                        // e.g. Exit was clicked or Alt+F4 closed the main window: not a failure
+                        return text(e.getMessage() + " Use list_apps or launch_app to continue.");
                     } catch (Exception e) {
                         return CallToolResult.builder()
                                 .addTextContent(e.getMessage() == null ? e.toString() : e.getMessage())
@@ -283,7 +377,9 @@ final class Tools {
 
     /** Room for the wait before the action plus the action itself. */
     private static Duration actionTimeout(Map<String, Object> args) {
-        Duration needed = Duration.ofMillis(num(args, "timeoutMs", 10000)).plusSeconds(20);
+        // typing sends several UI events per character; long texts need more time
+        int typed = String.valueOf(args.getOrDefault("text", "")).length() + String.valueOf(args.getOrDefault("key", "")).length();
+        Duration needed = Duration.ofMillis(num(args, "timeoutMs", 10000)).plusSeconds(20).plusMillis(100L * typed);
         return needed.compareTo(DEFAULT_TIMEOUT) > 0 ? needed : DEFAULT_TIMEOUT;
     }
 
