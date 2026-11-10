@@ -147,6 +147,17 @@ final class Naming {
         return consumedLabels.contains(label);
     }
 
+    /** The label-based name of one field, for messages (indexes its whole window; must run on the EDT). */
+    static String nameOf(Component c) {
+        Window window = Keys.windowOf(c);
+        if (window == null) {
+            return null;
+        }
+        Naming naming = new Naming();
+        naming.indexWindow(window);
+        return naming.nameFor(c);
+    }
+
     String nameFor(Component c) {
         JLabel label = labels.get(c);
         if (label != null && !Text.isBlank(Text.labelName(label.getText()))) {

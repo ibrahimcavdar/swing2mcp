@@ -1,6 +1,7 @@
 package com.acme.legacy;
 
 import javax.swing.BorderFactory;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -9,6 +10,8 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
+import javax.swing.event.MenuEvent;
+import javax.swing.event.MenuListener;
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -21,6 +24,7 @@ public class MainFrame extends JFrame {
     private CustomerPanel customerPanel;
     private OrderPanel orderPanel;
     private ReportPanel reportPanel;
+    private InvoicePanel invoicePanel;
     private JLabel lblStatus;
 
     public MainFrame(String userName) {
@@ -32,11 +36,13 @@ public class MainFrame extends JFrame {
         customerPanel = new CustomerPanel(lblStatus);
         orderPanel = new OrderPanel();
         reportPanel = new ReportPanel();
+        invoicePanel = new InvoicePanel();
 
         tabs = new JTabbedPane();
         tabs.addTab("Customers", customerPanel);
         tabs.addTab("Orders", orderPanel);
         tabs.addTab("Reports", reportPanel);
+        tabs.addTab("Invoices", invoicePanel);
 
         getContentPane().setLayout(new BorderLayout());
         getContentPane().add(tabs, BorderLayout.CENTER);
@@ -50,12 +56,39 @@ public class MainFrame extends JFrame {
         JMenuBar bar = new JMenuBar();
 
         JMenu mnuFile = new JMenu("File");
+        mnuFile.setMnemonic(KeyEvent.VK_F);
         JMenuItem miNewCustomer = new JMenuItem("New Customer");
         miNewCustomer.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_MASK));
         miNewCustomer.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 tabs.setSelectedComponent(customerPanel);
                 customerPanel.clearForm();
+            }
+        });
+        JMenuItem miImport = new JMenuItem("Import Customers...");
+        miImport.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                JFileChooser chooser = new JFileChooser();
+                chooser.setDialogTitle("Import Customers");
+                if (chooser.showOpenDialog(MainFrame.this) == JFileChooser.APPROVE_OPTION) {
+                    lblStatus.setText("Import file: " + chooser.getSelectedFile().getAbsolutePath()
+                            + (chooser.getSelectedFile().exists() ? "" : " (not found)"));
+                } else {
+                    lblStatus.setText("Import cancelled");
+                }
+            }
+        });
+        JMenuItem miGoTo = new JMenuItem("Go to Invoice...");
+        miGoTo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, InputEvent.CTRL_MASK));
+        miGoTo.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String number = JOptionPane.showInputDialog(MainFrame.this, "Invoice number:", "Go to Invoice",
+                        JOptionPane.QUESTION_MESSAGE);
+                if (number != null) {
+                    tabs.setSelectedComponent(invoicePanel);
+                    lblStatus.setText(invoicePanel.select(number.trim()) ? "Invoice " + number.trim()
+                            : "No invoice " + number.trim());
+                }
             }
         });
         JMenuItem miExit = new JMenuItem("Exit");
@@ -69,6 +102,8 @@ public class MainFrame extends JFrame {
             }
         });
         mnuFile.add(miNewCustomer);
+        mnuFile.add(miImport);
+        mnuFile.add(miGoTo);
         mnuFile.addSeparator();
         mnuFile.add(miExit);
 
@@ -79,8 +114,25 @@ public class MainFrame extends JFrame {
                 tabs.setSelectedComponent(reportPanel);
             }
         });
-        JMenuItem miExport = new JMenuItem("Export to Excel");
+        final JMenuItem miExport = new JMenuItem("Export to Excel");
         miExport.setEnabled(false);
+        miExport.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                lblStatus.setText("Exported invoices to Excel");
+            }
+        });
+        // Typical legacy pattern: items are enabled when the menu opens, depending on the screen.
+        mnuReports.addMenuListener(new MenuListener() {
+            public void menuSelected(MenuEvent e) {
+                miExport.setEnabled(tabs.getSelectedComponent() == invoicePanel);
+            }
+
+            public void menuDeselected(MenuEvent e) {
+            }
+
+            public void menuCanceled(MenuEvent e) {
+            }
+        });
         mnuReports.add(miMonthly);
         mnuReports.add(miExport);
 

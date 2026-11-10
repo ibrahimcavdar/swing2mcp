@@ -10,11 +10,17 @@ import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTree;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.Timer;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TreeExpansionEvent;
+import javax.swing.event.TreeWillExpandListener;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class OrderPanel extends JPanel {
 
@@ -37,9 +43,39 @@ public class OrderPanel extends JPanel {
         electronics.add(new DefaultMutableTreeNode("Phones"));
         DefaultMutableTreeNode office = new DefaultMutableTreeNode("Office");
         office.add(new DefaultMutableTreeNode("Stationery"));
+        // Children of the archive are loaded only when it is expanded, a little later (as from a server).
+        final DefaultMutableTreeNode archive = new DefaultMutableTreeNode("Archive");
+        archive.add(new DefaultMutableTreeNode("Loading…"));
         root.add(electronics);
         root.add(office);
+        root.add(archive);
         treeCategories = new JTree(root);
+        treeCategories.addTreeWillExpandListener(new TreeWillExpandListener() {
+            public void treeWillExpand(TreeExpansionEvent event) {
+                if (event.getPath().getLastPathComponent() != archive || archive.getChildCount() != 1
+                        || !"Loading…".equals(String.valueOf(((DefaultMutableTreeNode) archive.getChildAt(0)).getUserObject()))) {
+                    return;
+                }
+                Timer timer = new Timer(400, new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        archive.removeAllChildren();
+                        for (int year = 2019; year <= 2023; year++) {
+                            DefaultMutableTreeNode yearNode = new DefaultMutableTreeNode(String.valueOf(year));
+                            yearNode.add(new DefaultMutableTreeNode("Q1"));
+                            yearNode.add(new DefaultMutableTreeNode("Q2"));
+                            archive.add(yearNode);
+                        }
+                        ((DefaultTreeModel) treeCategories.getModel()).nodeStructureChanged(archive);
+                        treeCategories.expandRow(treeCategories.getRowForPath(new javax.swing.tree.TreePath(archive.getPath())));
+                    }
+                });
+                timer.setRepeats(false);
+                timer.start();
+            }
+
+            public void treeWillCollapse(TreeExpansionEvent event) {
+            }
+        });
 
         final String[] orders = {"SP-1001 Ayşe Yılmaz", "SP-1002 Mehmet Demir", "SP-1003 Zeynep Kaya"};
         lstOrders = new JList(orders);

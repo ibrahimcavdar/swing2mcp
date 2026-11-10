@@ -50,6 +50,14 @@ over MCP, without touching the product's code.
 | D24 | Actions **wait first** (default 10 s, `timeoutMs`) until the component is showing, enabled, editable where needed, not blocked by a modal dialog or a busy glass pane, and the UI thread answers. A glass pane counts as busy if it is visible over the component and has a wait cursor or mouse listeners (internal frames: only a wait cursor, since Swing gives their glass pane a listener). The result says how long it waited and why | Right after `wait_for` finds a field, the screen may still be blocked (e.g. a loading dialog). Playwright-style actionability waits remove that race without extra calls from the AI. |
 | D25 | Uncaught exceptions are **reported in the next tool result** (actions, snapshot, wait_for, errors), each once, with a short stack trace. The agent wraps the default uncaught exception handler and passes every exception on (to the previous handler, or prints it like the JVM); a handler that the application installs later, or sets on the UI thread, is wrapped on the next request. An exception thrown inside the action itself (e.g. a button's listener) is reported as "Action failed". Log output is not captured | The AI must notice that its change broke something; the application's own error handling must stay as it was. Logging frameworks differ too much to capture without dependencies. |
 | D26 | Snapshot: refs are assigned by **identity**, not `equals`; a `Window` whose children belong to another container (a framework's window facade for an internal frame) is skipped; a label subclass used as a field's name is hidden like a plain `JLabel`; a custom-painted leaf component shows the text of a public `getText()`/`getLabel()`/`getTitle()` found by reflection | Seen in a large legacy application whose framework has such facades (with `equals`/`hashCode` delegated) and its own label class; the output got twice as long and less clear. Reflection keeps the agent free of compile-time dependencies. |
+| D27 | Keys are **real key events inside the JVM**, dispatched to the component that has the keyboard focus, through the KeyboardFocusManager (key event dispatchers, focus traversal, key bindings, menu shortcuts, the default button). The window is never brought to the front. In an inactive window AWT has no focus owner, so the window's most recent focus owner takes the keys, and the focus events of a focus change are delivered with `KeyboardFocusManager.redispatchEvent`, as AWT does in the active window | The developer usually types in another program while the AI works; keys through the operating system would need the window in front and could end up in the wrong program. Public API only (D7); focus-lost handlers such as a formatted field's commit still run |
+| D28 | `type_text` types like a user: it focuses the field (the previous field's input verifier runs; if it refuses, nothing is typed and the result says why), selects the old text and sends each character as key pressed/typed/released. `mode=set` keeps the old `setText`; `mode=os` uses `java.awt.Robot`, checks before every key that the window still has the focus, and fails if the keys never arrived (e.g. a locked screen). `press_key` takes keys and chords ("Enter", "Ctrl+S", "Shift+Tab", "Tab Tab Enter"); Alt+F4 becomes the window-closing event that the operating system would send | Key listeners, document filters, length limits and input verifiers must run as they do for a user; `setText` skipped key listeners. The result reports when the application changed or rejected keys |
+| D29 | Clicks are **real mouse press and release**, also for buttons (no `doClick`): the press moves the focus first, so the previous field's input verifier and focus-lost handlers run before the release fires the action. If a verifier keeps the focus, the result says so (as in Swing, the button's action still runs) | With real typing, formatted fields commit when the focus leaves them; `doClick` did not move the focus, so a Save button could read an uncommitted value |
+| D30 | An action is a **list of steps** (each key or mouse event, each focus change), each queued separately on the UI thread and waited for; actions run **one at a time** (parallel tool calls wait), so their steps never interleave; like the gaps between real input events. A step that opens a modal dialog does not block the next ones (the dialog's event loop runs them). An action that cannot go on (focus refused, a dialog interrupts typing, a disabled menu item) stops with a plain message and is reported as an error, with the snapshot | What one event causes (a focus change, a dialog) must happen before the next event, as with a real keyboard and mouse; the AI needs to know why an action did not happen |
+| D31 | Tables, lists, trees and combo boxes are read with `read_items`, **as the cell renderers show them**, with the model value where it reads differently (dates as ISO); paging with `start`/`limit`, `find` over all columns, a subset of `columns`; sorted or filtered tables give the model row too. The snapshot stays short: at most 10 rows, 8 columns and 40 characters per cell (trees: 20 rows around the selection), with a pointer to `read_items`. Tree nodes are addressed by **paths of node texts** ("Root/Child" or "Root > Child", the root may be left out); ancestors are expanded on the way, and a child that is not there yet is waited for | Large tables must not flood the snapshot, but the AI must be able to check every row. Renderer text is what a user (and a test) sees; trees that load children on expansion only fill in when expanded, as for a user |
+| D32 | Menus are opened **level by level** (MenuSelectionManager, as the mouse does), so listeners that fill or enable items when a menu opens run; a disabled item is reported, not clicked. `select_menu` takes paths ("File > Export > PDF"), `context=true` right-clicks a component and uses its context menu. A click on an item of a closed menu takes the same route | Legacy applications often enable menu items when the menu opens; clicking a closed item directly skipped that code |
+| D33 | Dialogs: `handle_dialog` presses a button by its text or by **role** (ok, yes, no, cancel, open, save, mapped through the look and feel's texts so it works in any UI language; "close" is the window's close box), types the answer of an input dialog, or puts a path into a file chooser (the standard UI's file name field, then its Open/Save button). Actions take `dialog=<button>` to answer the modal dialog they open (an error if none opens within 3 s). The result repeats the dialog's title and message | Confirmations and messages are where tests check outcomes; a one-call "click Delete, answer Yes" keeps scripts short and readable |
+| D34 | When the application exits during a call (Exit, Alt+F4), the MCP server reports that as the result, not as an error | Closing the application is a valid outcome of an action |
 
 ## Components
 
@@ -106,7 +114,7 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
 | **M4** ✅ | Spring: Spring demo (demo-spring); the agent finds the context itself; `spring_beans`, `open_spring_bean` (opening a screen without navigating the menu) |
 | **M5** ✅ | Hot reload: loading compiled classes into the running JVM (`hot_reload`); rebuilding screens whose setup code changed, keeping the screen state for other changes |
 | **M6** ✅ | A fast, trustworthy edit → reload → check loop on a large legacy application: multi-module hot reload, waiting before actions, application errors in tool results, snapshot fixes |
-| M7 | Like a real user: real key events, reading tables and trees, dialogs |
+| **M7** ✅ | Like a real user: real key and mouse events, reading tables and trees, dialogs, menu paths |
 | (open) | Opening a panel by class name in applications without Spring (`open_panel(class)`) |
 
 ## M1 results (2026-10-29, macOS)
@@ -221,6 +229,48 @@ dialog in a button handler of the shared module (compile: `mvn -o compile` of th
   field no longer show up as "custom-painted".
 - Regression on demo-app (Java 8): login, disabled button and modal dialog time-outs with clear messages,
   hot reload of `saveCustomer`.
+
+## M7 results (2026-11-05, Windows 11)
+
+The AI now operates the application through the same code paths as a user. Tools added: `press_key`,
+`read_items`, `expand_node`, `select_menu`, `handle_dialog`; `type_text` types real keys; `click` uses real
+mouse events; actions take `dialog=<button>`.
+
+- **demo-app (Java 8)**, which got an email field with an input verifier, a digits-only phone field
+  (key listener), a long sortable invoice table with renderers, a tree node that loads its children
+  on expansion, an input dialog, a file chooser, a menu that enables an item when it opens and a context
+  menu:
+  - login with `type_text`, `press_key Tab` and `Enter`; Ctrl+N and Ctrl+G shortcuts; Alt+F, Down, Enter;
+    Escape closes message boxes;
+  - "05a32-12" typed into the phone field gives "053212" and the result says keys were rejected;
+    `mode=set` still bypasses the key listener;
+  - an invalid email keeps the focus: typing elsewhere is refused with the reason, and a click on Save
+    reports it (the action still runs, as in Swing); a spinner commits its typed value when the focus
+    leaves it;
+  - the same with the window **inactive** (not the foreground window): keys, Tab, verifier, spinner
+    commit and dialogs work; the user's keyboard is not used;
+  - `read_items`: paging, `find` (5 of 120 rows), column subsets, renderer text with model values,
+    model rows after sorting by a header click;
+  - trees: the lazily loaded node is expanded and its grandchild selected by path after waiting for the
+    load (324 ms); collapse; a missing node fails with the list of existing ones;
+  - dialogs: Delete answered with no/yes, the validation message read, the input dialog answered with
+    text, the file chooser answered with a file, a directory (it navigates and stays open, and says so),
+    cancel and close;
+  - menus: the item enabled on menu open, a disabled item reported, nested paths, context menu with
+    `dialog=yes`; File > Exit with `dialog=yes` reports that the application exited.
+- **demo-spring (Java 8)**: login with keys, a custom dialog opened by menu path, spinner typing, Spring
+  beans, and a hot reload of a service message checked with `dialog=ok` (and reverted).
+- **The large legacy application** (custom look and feel and window framework, Turkish UI): the
+  language and login screens advanced with Enter; a name field's 48-character limit was enforced and
+  reported; the framework's message boxes were answered with ok/yes/no, which matched "Tamam", "Evet",
+  "Hayır"; multi-line warnings were read; Escape closed a custom dialog; the scenario and model trees
+  were read, expanded and selected by path; nested menus and a check box menu item worked; a check box
+  cell of a table was toggled by a real click.
+- The machine's screen was locked during part of the tests: in-JVM keys and mouse events and screenshots
+  kept working. `mode=os` correctly reported that the keys did not arrive; its normal path still needs a
+  check with someone at the screen.
+- Not covered: drag and drop, multiple selection with Ctrl/Shift clicks, the inactive-window path on the
+  legacy application, typing through native input methods (IME).
 
 ## Risks / to be verified
 

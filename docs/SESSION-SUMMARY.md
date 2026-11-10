@@ -1,4 +1,4 @@
-# Session summary (M1–M6, 2026-10-28 → 2026-11-05)
+# Session summary (M1–M7, 2026-10-28 → 2026-11-05)
 
 This file was written to continue the project on another computer with another AI agent. The first
 session took place on macOS; the next step is testing on Windows (see [WINDOWS-TEST.md](../WINDOWS-TEST.md)).
@@ -38,7 +38,7 @@ AI tool ──MCP(stdio)──▶ swing2mcp MCP server (Java 17) ──localhost
 | `demo-app` | 8 | Legacy-style test application without Spring (admin/admin) |
 | `demo-spring` | 8, Spring 5.3 | Test application with Spring (admin/admin) |
 
-All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open questions C1–C3).
+All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D34, open questions C1–C3).
 
 ## Milestone history
 
@@ -50,12 +50,15 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open que
 | `m4` | demo-spring; the agent finds the Spring context itself (static field, shutdown hook, object graph); `spring_beans`, `open_spring_bean` | run (Java 8) and attach (Java 21); polite error in an application without Spring |
 | `m5` | `hot_reload`: finds changed classes at method level and applies them; rebuilds only the screen whose setup code changed; rejects structural changes with an explanation | run (Java 8), attach Spring (Java 21), `java -jar` + `classesDir` (Java 21); the M1–M4 flows were run again |
 | `m5.1` | Windows test: fix for attaching to Java 8, a clear hot reload message when compiling with a different JDK, a manual test script | Windows 11: steps 2–7 with `mcp-steps.py`; Ctrl+C, screenshot and AI tool by the user |
+| `m7` | Like a real user: real key events (`type_text`, `press_key`, also in an inactive window), real mouse clicks, `read_items` for tables/lists/trees, tree paths and `expand_node`, `select_menu`, `handle_dialog` and `dialog=` on actions | Windows 11, Java 8: demo-app (also with the window inactive), demo-spring (incl. hot reload), the large legacy application (login with Enter, its trees, menus and Turkish message boxes) |
 | `m6` | Fast loop on a large legacy application: multi-module hot reload (original bytes from the jar, `-Dswing2mcp.classesDirs`), actions wait until the component is usable, uncaught application exceptions in tool results, snapshot fixes (window facades, label subclasses, refs by identity) | Windows 11, Java 8, a large legacy Swing application (two modules, Spring Boot 2.1) with `mcp-steps.py`; regression on demo-app |
 
 ## Status and next step
 
-- `m6` (2026-11-05) was done on the `m6` branch; details and numbers: DESIGN.md, "M6 results".
-- **Next step:** m7 (real key events, reading tables and trees, dialogs), then the open-source release.
+- `m7` (2026-11-05) was done on the `feature/m7` branch; details: DESIGN.md, "M7 results" (D27–D34).
+- **Next step:** the open-source release (README, demo GIF, security notes), then m8 (step traces,
+  record and replay without AI).
+- `m6` (2026-11-05): details and numbers in DESIGN.md, "M6 results".
 - All earlier work is on `main`; `m5.1` was the latest milestone before m6.
 - **Windows (2026-11-03):** WINDOWS-TEST steps 2–7 were tried by an AI agent with `mcp-steps.py`
   on Windows 11 and passed. Two bugs were fixed (Windows' success message when attaching to Java 8;
@@ -69,8 +72,9 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open que
 ## Open questions / possible next milestones
 
 - User folder with spaces on Windows (not tried).
-- Real key events (`type_text` currently uses `setText`; KeyListener/InputVerifier
-  may not be triggered) and `press_key` (Enter, Esc, Ctrl+S).
+- `type_text mode=os` / `press_key mode=os` (java.awt.Robot) have only been seen failing cleanly on a
+  locked screen; they need a check with someone at the screen.
+- Drag and drop, multiple selection with Ctrl/Shift clicks.
 - Opening a panel by class name in applications without Spring (`open_panel`).
 - Drawing ref labels on the screenshot.
 - Connecting over HTTP (C3).
@@ -95,6 +99,13 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D22, open que
   check walked from a window's root pane back to the same root pane and froze the application.
 - The running application keeps the agent jar in `~/.m2` open; on Windows `mvn install` may fail to replace it
   while the application runs. Stop the application before rebuilding the agent.
+- Testing the inactive-window path: a window minimized with `ShowWindow(SW_MINIMIZE)` from another
+  process stays the active window; let the application open and close a dialog afterwards, then the
+  frame is inactive. Starting Notepad does not take the foreground from a background shell.
+- In-JVM keys work on a locked screen; `java.awt.Robot` keys silently go nowhere there (`mode=os`
+  detects that with an AWT event listener and reports it).
+- The Bash tool's heredocs turn `\\` into `\` (also inside JSON test steps): use forward slashes in
+  paths, and write edit scripts with a file instead of a heredoc.
 - The hot reload baseline is recorded in the background when the agent starts. Class files written after
   the JVM started are counted as "unknown" and applied on the first reload.
 

@@ -2,9 +2,13 @@ package com.acme.legacy;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.InputVerifier;
 import javax.swing.JCheckBox;
+import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -16,12 +20,15 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -31,6 +38,7 @@ public class CustomerPanel extends JPanel {
 
     private JTextField txtName;
     private JTextField txtEmail;
+    private JTextField txtPhone;
     private JComboBox cmbCity;
     private JCheckBox chkActive;
     private JTextArea txtNotes;
@@ -65,20 +73,41 @@ public class CustomerPanel extends JPanel {
         // No setLabelFor on purpose (very common in legacy code).
         txtEmail = new JTextField(24);
         addRow(form, gc, 1, new JLabel("Email:"), txtEmail);
+        // Typical legacy validation: the focus cannot leave an invalid email address.
+        final Color normal = txtEmail.getBackground();
+        txtEmail.setInputVerifier(new InputVerifier() {
+            public boolean verify(JComponent input) {
+                String email = ((JTextField) input).getText().trim();
+                boolean valid = email.length() == 0 || email.indexOf('@') > 0;
+                input.setBackground(valid ? normal : new Color(255, 200, 200));
+                return valid;
+            }
+        });
+
+        // Typical legacy key filter: only digits get through (setText would bypass it).
+        txtPhone = new JTextField(24);
+        txtPhone.addKeyListener(new KeyAdapter() {
+            public void keyTyped(KeyEvent e) {
+                if (!Character.isDigit(e.getKeyChar())) {
+                    e.consume();
+                }
+            }
+        });
+        addRow(form, gc, 2, new JLabel("Phone:"), txtPhone);
 
         cmbCity = new JComboBox(new String[]{"Ankara", "İstanbul", "İzmir", "Bursa", "Antalya"});
-        addRow(form, gc, 2, new JLabel("City:"), cmbCity);
+        addRow(form, gc, 3, new JLabel("City:"), cmbCity);
 
         chkActive = new JCheckBox("Active customer", true);
-        gc.gridx = 1; gc.gridy = 3;
+        gc.gridx = 1; gc.gridy = 4;
         form.add(chkActive, gc);
 
         // Label above the field rather than to its left.
-        gc.gridx = 0; gc.gridy = 4; gc.gridwidth = 2;
+        gc.gridx = 0; gc.gridy = 5; gc.gridwidth = 2;
         form.add(new JLabel("Notes:"), gc);
         txtNotes = new JTextArea(3, 24);
         txtNotes.setLineWrap(true);
-        gc.gridy = 5;
+        gc.gridy = 6;
         form.add(new JScrollPane(txtNotes), gc);
         gc.gridwidth = 1;
 
@@ -90,7 +119,7 @@ public class CustomerPanel extends JPanel {
         buttons.add(btnSave);
         buttons.add(btnClear);
         buttons.add(btnDelete);
-        gc.gridx = 0; gc.gridy = 6; gc.gridwidth = 2;
+        gc.gridx = 0; gc.gridy = 7; gc.gridwidth = 2;
         form.add(buttons, gc);
 
         customerModel = new DefaultTableModel(new Object[]{"ID", "Full Name", "Email", "City", "Active"}, 0) {
@@ -131,10 +160,43 @@ public class CustomerPanel extends JPanel {
                 btnDelete.setEnabled(tblCustomers.getSelectedRow() >= 0);
             }
         });
+        final JPopupMenu tableMenu = new JPopupMenu();
+        JMenuItem miLoad = new JMenuItem("Load into Form");
+        miLoad.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                loadSelected();
+            }
+        });
+        JMenuItem miDelete = new JMenuItem("Delete...");
+        miDelete.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                deleteSelected();
+            }
+        });
+        tableMenu.add(miLoad);
+        tableMenu.add(miDelete);
         tblCustomers.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
                     loadSelected();
+                }
+            }
+
+            public void mousePressed(MouseEvent e) {
+                showMenu(e);
+            }
+
+            public void mouseReleased(MouseEvent e) {
+                showMenu(e);
+            }
+
+            private void showMenu(MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    int row = tblCustomers.rowAtPoint(e.getPoint());
+                    if (row >= 0) {
+                        tblCustomers.setRowSelectionInterval(row, row);
+                    }
+                    tableMenu.show(tblCustomers, e.getX(), e.getY());
                 }
             }
         });
@@ -195,6 +257,8 @@ public class CustomerPanel extends JPanel {
     public void clearForm() {
         txtName.setText("");
         txtEmail.setText("");
+        txtEmail.setBackground(txtName.getBackground());
+        txtPhone.setText("");
         cmbCity.setSelectedIndex(0);
         chkActive.setSelected(true);
         txtNotes.setText("");

@@ -31,8 +31,6 @@ import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.JTree;
 import javax.swing.KeyStroke;
-import javax.swing.ListCellRenderer;
-import javax.swing.ListModel;
 import javax.swing.RootPaneContainer;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
@@ -58,14 +56,21 @@ import java.util.List;
 final class SnapshotBuilder {
 
     static final class Options {
-        int maxRows = 20;
+        /** Rows of tables and items of lists shown; trees show twice as many rows. */
+        int maxRows = 10;
         boolean expandMenus = false;
     }
+
+    /** Columns and characters per cell shown for a table; read_items gives the rest. */
+    private static final int MAX_COLUMNS = 8;
+    private static final int MAX_CELL = 40;
 
     private final RefRegistry refs;
     private final Options options;
     private final StringBuilder out = new StringBuilder();
     private final Naming naming = new Naming();
+    /** Where keys go now (also in an inactive window); marked "focused". */
+    private Component focusOwner;
 
     SnapshotBuilder(RefRegistry refs, Options options) {
         this.refs = refs;
@@ -94,10 +99,27 @@ final class SnapshotBuilder {
 
     /** The modal dialog that currently blocks input, if any (the most recently opened one). */
     static Dialog activeModalDialog() {
-        Dialog found = null;
+        Window active = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+        if (active instanceof Dialog && ((Dialog) active).isModal() && active.isShowing()) {
+            return (Dialog) active;
+        }
+        List<Dialog> modals = new ArrayList<Dialog>();
         for (Window window : showingWindows()) {
             if (window instanceof Dialog && ((Dialog) window).isModal()) {
-                found = (Dialog) window;
+                modals.add((Dialog) window);
+            }
+        }
+        // the top one: a modal dialog that owns no other open modal dialog (newest if several)
+        Dialog found = null;
+        for (Dialog candidate : modals) {
+            boolean ownsModal = false;
+            for (Dialog other : modals) {
+                for (Window w = other.getOwner(); other != candidate && w != null && !ownsModal; w = w.getOwner()) {
+                    ownsModal = w == candidate;
+                }
+            }
+            if (!ownsModal) {
+                found = candidate;
             }
         }
         return found;
@@ -108,6 +130,7 @@ final class SnapshotBuilder {
         if (windows.isEmpty()) {
             return "(no visible windows)\n";
         }
+        focusOwner = Keys.focusOwner();
         Dialog modal = activeModalDialog();
         if (modal != null && only == null) {
             out.append("NOTE: modal dialog ").append(Text.quote(modal.getTitle())).append(" [ref=")
@@ -149,6 +172,10 @@ final class SnapshotBuilder {
         sb.append(ref(window)).append(' ').append(window.getWidth()).append('x').append(window.getHeight());
         if (window instanceof Dialog && ((Dialog) window).isModal()) {
             sb.append(" modal");
+        }
+        javax.swing.JOptionPane pane = Dialogs.find(window, javax.swing.JOptionPane.class);
+        if (pane != null) {
+            sb.append(" messagebox=").append(Dialogs.messageType(pane.getMessageType()));
         }
         if (window.isActive()) {
             sb.append(" active");
@@ -219,6 +246,15 @@ final class SnapshotBuilder {
     /** Header line for containers worth showing; null for purely structural containers. */
     private String containerHeader(Container c, boolean custom) {
         String title = titledBorder(c);
+        if (c instanceof javax.swing.JFileChooser) {
+            javax.swing.JFileChooser chooser = (javax.swing.JFileChooser) c;
+            String mode = chooser.getDialogType() == javax.swing.JFileChooser.SAVE_DIALOG ? "save"
+                    : chooser.getDialogType() == javax.swing.JFileChooser.OPEN_DIALOG ? "open" : "custom";
+            String what = chooser.getFileSelectionMode() == javax.swing.JFileChooser.DIRECTORIES_ONLY ? " directories"
+                    : chooser.getFileSelectionMode() == javax.swing.JFileChooser.FILES_AND_DIRECTORIES ? " files+directories" : "";
+            return "filechooser " + mode + what + ref(c) + " dir=" + Text.quote(String.valueOf(chooser.getCurrentDirectory()))
+                    + " (handle_dialog path=... picks a file)";
+        }
         if (c instanceof JInternalFrame) {
             return "internalframe " + Text.quote(((JInternalFrame) c).getTitle()) + ref(c) + classSuffix(c);
         }
@@ -277,11 +313,11 @@ final class SnapshotBuilder {
         if (c instanceof JComboBox) {
             JComboBox<?> combo = (JComboBox<?>) c;
             StringBuilder sb = new StringBuilder("combobox").append(named(c)).append(ref(c));
-            sb.append(" value=").append(Text.quote(comboText(combo, combo.getSelectedItem(), -1)));
+            sb.append(" value=").append(Text.quote(Items.comboText(combo, combo.getSelectedItem(), -1)));
             sb.append(" options=[");
             int count = combo.getItemCount();
             for (int i = 0; i < Math.min(count, options.maxRows); i++) {
-                sb.append(i > 0 ? ", " : "").append(Text.quote(comboText(combo, combo.getItemAt(i), i), 60));
+                sb.append(i > 0 ? ", " : "").append(Text.quote(Items.comboText(combo, combo.getItemAt(i), i), 60));
             }
             if (count > options.maxRows) {
                 sb.append(", … ").append(count - options.maxRows).append(" more");
@@ -305,7 +341,7 @@ final class SnapshotBuilder {
         if (c instanceof JTree) {
             JTree tree = (JTree) c;
             return "tree" + named(c) + ref(c) + " visibleRows=" + tree.getRowCount()
-                    + selection(tree.getSelectionRows()) + states(c) + fieldSuffix(c);
+                    + selectedNode(tree) + states(c) + fieldSuffix(c);
         }
         if (c instanceof JTabbedPane) {
             JTabbedPane tabs = (JTabbedPane) c;
@@ -384,9 +420,13 @@ final class SnapshotBuilder {
     }
 
     private void tableRows(JTable table, int depth) {
+        int cols = Math.min(table.getColumnCount(), MAX_COLUMNS);
         StringBuilder header = new StringBuilder("columns: ");
-        for (int col = 0; col < table.getColumnCount(); col++) {
-            header.append(col > 0 ? " | " : "").append(table.getColumnName(col));
+        for (int col = 0; col < cols; col++) {
+            header.append(col > 0 ? " | " : "").append(Text.plain(table.getColumnName(col)));
+        }
+        if (cols < table.getColumnCount()) {
+            header.append(" | … ").append(table.getColumnCount() - cols).append(" more columns");
         }
         line(depth, header.toString());
         int rows = table.getRowCount();
@@ -402,84 +442,80 @@ final class SnapshotBuilder {
         }
         for (int row = first; row < last; row++) {
             StringBuilder sb = new StringBuilder("row ").append(row).append(": ");
-            for (int col = 0; col < table.getColumnCount(); col++) {
-                sb.append(col > 0 ? " | " : "").append(cellText(table, row, col));
+            for (int col = 0; col < cols; col++) {
+                String text = Items.cellText(table, row, col);
+                sb.append(col > 0 ? " | " : "").append(text.length() > MAX_CELL ? text.substring(0, MAX_CELL) + "…" : text);
             }
             if (table.isRowSelected(row)) {
                 sb.append("  (selected)");
             }
             line(depth, sb.toString());
         }
-        if (last < rows) {
-            line(depth, "… " + (rows - last) + " more rows");
+        if (last < rows || cols < table.getColumnCount()) {
+            line(depth, (last < rows ? "… " + (rows - last) + " more rows; " : "") + "read_items ref="
+                    + refs.refFor(table) + " reads all rows and columns");
         }
     }
 
-    private static String cellText(JTable table, int row, int col) {
-        try {
-            Component renderer = table.prepareRenderer(table.getCellRenderer(row, col), row, col);
-            if (renderer instanceof JLabel) {
-                return oneLine(Text.plain(((JLabel) renderer).getText()));
-            }
-            if (renderer instanceof AbstractButton) {
-                return ((AbstractButton) renderer).isSelected() ? "[x]" : "[ ]";
-            }
-        } catch (RuntimeException ignored) {
-            // fall back to the raw value
-        }
-        Object value = table.getValueAt(row, col);
-        return value == null ? "" : oneLine(String.valueOf(value));
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private void listItems(JList list, int depth) {
-        ListModel model = list.getModel();
-        int size = model.getSize();
+    private void listItems(JList<?> list, int depth) {
+        int size = list.getModel().getSize();
         int first = Math.max(0, list.getFirstVisibleIndex());
         int last = Math.min(size, first + options.maxRows);
         if (first > 0) {
             line(depth, "… " + first + " items above");
         }
-        ListCellRenderer renderer = list.getCellRenderer();
         for (int i = first; i < last; i++) {
-            Object value = model.getElementAt(i);
-            String text = null;
-            try {
-                Component rc = renderer.getListCellRendererComponent(list, value, i, false, false);
-                if (rc instanceof JLabel) {
-                    text = Text.plain(((JLabel) rc).getText());
-                }
-            } catch (RuntimeException ignored) {
-                // fall back to toString
-            }
-            if (text == null) {
-                text = String.valueOf(value);
-            }
-            line(depth, "item " + i + ": " + Text.quote(oneLine(text)) + (list.isSelectedIndex(i) ? " (selected)" : ""));
+            line(depth, "item " + i + ": " + Text.quote(Items.listText(list, i)) + (list.isSelectedIndex(i) ? " (selected)" : ""));
         }
         if (last < size) {
-            line(depth, "… " + (size - last) + " more items");
+            line(depth, "… " + (size - last) + " more items; read_items ref=" + refs.refFor(list) + " reads them");
         }
     }
 
+    /** The visible rows (around the first selected one), as indented nodes. */
     private void treeRows(JTree tree, int depth) {
         int rows = tree.getRowCount();
-        int last = Math.min(rows, options.maxRows);
-        for (int row = 0; row < last; row++) {
+        int limit = options.maxRows * 2;
+        int first = 0;
+        int lead = tree.getLeadSelectionRow();
+        if (lead >= limit) {
+            first = Math.min(lead - limit / 2, Math.max(0, rows - limit));
+        }
+        int last = Math.min(rows, first + limit);
+        if (first > 0) {
+            line(depth, "… " + first + " rows above");
+        }
+        for (int row = first; row < last; row++) {
             TreePath path = tree.getPathForRow(row);
             Object node = path.getLastPathComponent();
             boolean leaf = tree.getModel().isLeaf(node);
-            String text = tree.convertValueToText(node, tree.isRowSelected(row), tree.isExpanded(row), leaf, row, false);
-            StringBuilder sb = new StringBuilder("node ").append(row).append(": ").append(Text.quote(oneLine(text)));
-            sb.append(leaf ? "" : tree.isExpanded(row) ? " expanded" : " collapsed");
+            StringBuilder sb = new StringBuilder("node ").append(row).append(": ")
+                    .append(Text.quote(Items.nodeText(tree, node)));
+            if (!leaf) {
+                sb.append(tree.isExpanded(row) ? " expanded" : " collapsed");
+            }
             if (tree.isRowSelected(row)) {
                 sb.append(" (selected)");
             }
             line(depth + path.getPathCount() - 1, sb.toString());
         }
         if (last < rows) {
-            line(depth, "… " + (rows - last) + " more rows");
+            line(depth, "… " + (rows - last) + " more rows; read_items ref=" + refs.refFor(tree) + " reads them");
         }
+    }
+
+    /** selected="Root/Child" for the lead selection of a tree (the path is what expand and select take). */
+    private static String selectedNode(JTree tree) {
+        TreePath path = tree.getLeadSelectionPath();
+        if (path == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = tree.isRootVisible() ? 0 : 1; i < path.getPathCount(); i++) {
+            sb.append(sb.length() > 0 ? "/" : "").append(Items.nodeText(tree, path.getPathComponent(i)));
+        }
+        int count = tree.getSelectionCount();
+        return " selected=" + Text.quote(sb.toString()) + (count > 1 ? " (+" + (count - 1) + " more)" : "");
     }
 
     private void menuBar(JMenuBar bar, int depth) {
@@ -548,23 +584,6 @@ final class SnapshotBuilder {
         return "button";
     }
 
-    private static String comboText(JComboBox<?> combo, Object value, int index) {
-        if (value == null) {
-            return "";
-        }
-        try {
-            @SuppressWarnings({"unchecked", "rawtypes"})
-            Component rc = ((ListCellRenderer) combo.getRenderer())
-                    .getListCellRendererComponent(new JList(), value, index, false, false);
-            if (rc instanceof JLabel && !Text.isBlank(((JLabel) rc).getText())) {
-                return Text.plain(((JLabel) rc).getText());
-            }
-        } catch (RuntimeException ignored) {
-            // fall back to toString
-        }
-        return String.valueOf(value);
-    }
-
     private String states(Component c) {
         StringBuilder sb = new StringBuilder();
         if (!c.isEnabled()) {
@@ -573,7 +592,7 @@ final class SnapshotBuilder {
         if (c instanceof JToggleButton) {
             sb.append(((JToggleButton) c).isSelected() ? " checked" : " unchecked");
         }
-        if (c.isFocusOwner()) {
+        if (c == focusOwner || (focusOwner != null && Actions.inputOf(c) == focusOwner)) {
             sb.append(" focused");
         }
         return sb.toString();
@@ -658,10 +677,6 @@ final class SnapshotBuilder {
             return Text.plain(((TitledBorder) border).getTitle());
         }
         return null;
-    }
-
-    private static String oneLine(String s) {
-        return s == null ? "" : s.replace('\n', ' ').replace('\r', ' ');
     }
 
     private void line(int depth, String text) {
