@@ -184,12 +184,11 @@ The agent is added to the application's JVM as a `-javaagent`. It listens only o
 port and token. It writes the connection details to `~/.swing2mcp/jvms/<pid>.properties`
 (readable only by its owner) and deletes the file when the application exits.
 
-## Developing this repository
+Why it is built this way: [docs/design.md](docs/design.md).
 
-`mvn install` with JDK 17+ and Maven. The version in the poms is always `999-SNAPSHOT` (`${revision}`);
-a release is only a tag `vX.Y.Z`, which the release workflow builds with `-Drevision=X.Y.Z` and publishes
-as a GitHub release. No commit ever changes a version. Modules: `agent` (Java 8), `mcp` (Java 17),
-`maven-plugin` (Java 8), `demo-app` and `demo-spring` (Java 8; login `admin` / `admin`). To try the demo
-application, run `mvn swing2mcp:setup` and `mvn swing2mcp:run` in the `demo-app` folder.
+## Contributing
 
-Design decisions and roadmap: [DESIGN.md](DESIGN.md).
+`mvn install` with JDK 17+ builds everything. To try it on the demo application, run
+`mvn swing2mcp:setup` and `mvn swing2mcp:run` in the `demo-app` folder (login `admin` / `admin`).
+The rules of the code base, testing and releases are in [CONTRIBUTING.md](CONTRIBUTING.md); changes
+between versions are in [CHANGELOG.md](CHANGELOG.md).

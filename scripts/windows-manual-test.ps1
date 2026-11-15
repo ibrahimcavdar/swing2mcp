@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Helpers for the manual checks of WINDOWS-TEST.md that need a person at the screen.
+  Helpers for the manual checks of docs/manual-testing.md that need a person at the screen.
 
 .DESCRIPTION
   ctrlc       Starts demo-app with "mvn swing2mcp:run"; press Ctrl+C and the script reports whether the
@@ -208,7 +208,7 @@ switch ($Test) {
         Write-Host "     $demo"
         Write-Host '2. The first prompt is on the clipboard, paste it:' -ForegroundColor Cyan
         Write-Host "     $prompt"
-        Write-Host '3. Other prompts: WINDOWS-TEST.md step 7 (hot reload).' -ForegroundColor Cyan
+        Write-Host '3. Other prompts: docs/manual-testing.md, "Hot reload".' -ForegroundColor Cyan
         Write-Host "Starting the application now with $runJava; press Ctrl+C in this terminal when done." -ForegroundColor Cyan
         Write-Host ''
         Push-Location $demo
