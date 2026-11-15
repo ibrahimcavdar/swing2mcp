@@ -6,7 +6,9 @@ state and next step. Design decisions: [DESIGN.md](DESIGN.md). Windows testing:
 
 ## Conventions
 
-- Every finished milestone is committed and tagged (`m1`, `m2`...). Risky work goes on a branch.
+- Every finished milestone is committed; risky work goes on a branch and is fast-forwarded into `main`.
+- Versions: the poms say `${revision}` (`999-SNAPSHOT`); never edit a version by hand. A release is a tag
+  `vX.Y.Z` pushed to GitHub (see `.github/workflows/release.yml`); there are no milestone tags.
 
 ## Constraints
 

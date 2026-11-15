@@ -4,6 +4,18 @@ A developer tool that lets AI tools **see and use** legacy Java Swing applicatio
 touching their code. It offers a Playwright-like experience for Swing.
 It works with Claude Code, Cursor, OpenCode, Codex and any tool that supports MCP.
 
+> **Alpha.** swing2mcp is not on Maven Central yet. Build it once from source (JDK 17+, Maven 3.6.3+);
+> this puts the plugin into your local Maven repository:
+>
+> ```bash
+> git clone --branch v0.1.0 https://github.com/ibrahimcavdar/swing2mcp.git
+> cd swing2mcp
+> mvn install -Drevision=0.1.0 -DskipTests
+> ```
+>
+> Releases are listed on the GitHub releases page. A build without `-Drevision` is the development
+> version `999-SNAPSHOT`.
+
 ## Quick start (Maven project)
 
 **1. Add the plugin to your project's `pom.xml`.** This is the only part you need to add:
@@ -14,7 +26,7 @@ It works with Claude Code, Cursor, OpenCode, Codex and any tool that supports MC
     <plugin>
       <groupId>io.github.swing2mcp</groupId>
       <artifactId>swing2mcp-maven-plugin</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.0</version>
     </plugin>
   </plugins>
 </build>
@@ -174,7 +186,9 @@ port and token. It writes the connection details to `~/.swing2mcp/jvms/<pid>.pro
 
 ## Developing this repository
 
-`mvn install` with JDK 17+ and Maven. Modules: `agent` (Java 8), `mcp` (Java 17),
+`mvn install` with JDK 17+ and Maven. The version in the poms is always `999-SNAPSHOT` (`${revision}`);
+a release is only a tag `vX.Y.Z`, which the release workflow builds with `-Drevision=X.Y.Z` and publishes
+as a GitHub release. No commit ever changes a version. Modules: `agent` (Java 8), `mcp` (Java 17),
 `maven-plugin` (Java 8), `demo-app` and `demo-spring` (Java 8; login `admin` / `admin`). To try the demo
 application, run `mvn swing2mcp:setup` and `mvn swing2mcp:run` in the `demo-app` folder.
 

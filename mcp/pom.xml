@@ -6,7 +6,7 @@
   <parent>
     <groupId>io.github.swing2mcp</groupId>
     <artifactId>swing2mcp-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>swing2mcp</artifactId>
@@ -39,6 +39,23 @@
 
   <build>
     <finalName>swing2mcp</finalName>
+    <resources>
+      <!-- the version the server reports comes from the build, not from the code -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>swing2mcp/version.properties</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes>
+          <exclude>swing2mcp/version.properties</exclude>
+        </excludes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

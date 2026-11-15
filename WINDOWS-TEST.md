@@ -73,7 +73,7 @@ mvn swing2mcp:setup
 
 Check:
 
-- [ ] The output has `MCP server installed at C:\Users\...\.swing2mcp\bin\swing2mcp-0.1.0-SNAPSHOT.jar`.
+- [ ] The output has `MCP server installed at C:\Users\...\.swing2mcp\bin\swing2mcp-999-SNAPSHOT.jar`.
 - [ ] `.mcp.json`, `.cursor\mcp.json`, `opencode.json` and `.codex\config.toml` were created in the `demo-app` folder
   and the paths in them are correct, in the `C:\...` form.
 - [ ] If Maven runs on Java 8, the error message should suggest `-Dswing2mcp.mcpJavaHome=...`; try

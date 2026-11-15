@@ -18,8 +18,13 @@ Goal: share it with other teams at work and make it open source. The target envi
 
 ## Principles
 
-- **Every milestone is committed and tagged** (`m1`, `m2`...). Risky work is done on a separate branch
-  and fast-forwarded into `main` when done, so going back to the previous tag is always possible.
+- **Every milestone is committed.** Risky work is done on a separate branch and fast-forwarded into
+  `main` when done. The milestone tags `m1`–`m7` were removed before the first public release; milestones
+  are named in the commit messages ("M7: ...").
+- **Versions come from tags:** the poms always say `999-SNAPSHOT` (`${revision}`, resolved in installed poms
+  by flatten-maven-plugin). A release is a tag `vX.Y.Z`; the release workflow builds it with
+  `-Drevision=X.Y.Z` and creates a GitHub (pre-)release. The first alpha is `v0.1.0`, built from source by
+  its users.
 - Client-independent (not specific to Claude Code). Maven-focused but extensible.
 - No invisible or security-wise problematic automatic behavior; control is given explicitly.
 - Few parts to deliver.
