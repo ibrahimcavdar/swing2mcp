@@ -50,22 +50,10 @@ final class OsKeys {
                     throw new IllegalArgumentException("No visible window to send keys to");
                 }
                 Keys.noteWindow(w);
-                if (!w.isFocused()) {
-                    w.toFront();
-                    w.requestFocus();
-                }
                 return w;
             }
         }, 3000);
-        if (!waitFor(new Callable<Boolean>() {
-            public Boolean call() {
-                return window.isFocused();
-            }
-        })) {
-            throw new IllegalArgumentException("mode=os needs the application window in front, and the operating system "
-                    + "did not let it come forward (only the program in front may do that). Click the application "
-                    + "window once and try again, or leave out mode=os: the default needs no focus.");
-        }
+        front(window, "mode=os");
         if (target != null) {
             Edt.call(new Callable<Object>() {
                 public Object call() {
@@ -87,7 +75,99 @@ final class OsKeys {
                 throw new IllegalArgumentException(why);
             }
         }
+        Component at = target;
+        if (at == null) {
+            at = Edt.call(new Callable<Component>() {
+                public Component call() {
+                    Component owner = Keys.focusOwner(window);
+                    return owner != null ? owner : window;
+                }
+            }, 3000);
+        }
+        java.awt.PointerInfo pointer = java.awt.MouseInfo.getPointerInfo();
+        java.awt.Point home = pointer == null ? null : pointer.getLocation();
+        try {
+            checkOnTop(at, null, "mode=os");
+        } finally {
+            if (home != null) {
+                OsMouse.move(new Robot(), home.x, home.y);
+            }
+        }
         return new OsKeys(window);
+    }
+
+    /**
+     * Proves that the application is really in front at point p of c (default: its center) before
+     * anything is pressed: moves the pointer there and checks that the move arrives in c's window.
+     * Java's own focus state is not enough: Windows may refuse to bring the window forward while
+     * Java still believes it is focused (seen after the screen had been locked).
+     */
+    static void checkOnTop(final Component c, final java.awt.Point p, String what) throws Exception {
+        final Window window = Edt.call(new Callable<Window>() {
+            public Window call() {
+                return Keys.windowOf(c);
+            }
+        }, 3000);
+        final java.awt.Point at = Edt.call(new Callable<java.awt.Point>() {
+            public java.awt.Point call() {
+                java.awt.Point origin = c.getLocationOnScreen();
+                return p != null ? new java.awt.Point(origin.x + p.x, origin.y + p.y)
+                        : new java.awt.Point(origin.x + c.getWidth() / 2, origin.y + c.getHeight() / 2);
+            }
+        }, 3000);
+        final int[] seen = {0};
+        AWTEventListener listener = new AWTEventListener() {
+            public void eventDispatched(AWTEvent event) {
+                int id = event.getID();
+                if ((id == java.awt.event.MouseEvent.MOUSE_MOVED || id == java.awt.event.MouseEvent.MOUSE_ENTERED)
+                        && event.getSource() instanceof Component && Keys.windowOf((Component) event.getSource()) == window) {
+                    seen[0]++;
+                }
+            }
+        };
+        Toolkit.getDefaultToolkit().addAWTEventListener(listener, AWTEvent.MOUSE_EVENT_MASK | AWTEvent.MOUSE_MOTION_EVENT_MASK);
+        try {
+            Robot robot = new Robot();
+            OsMouse.move(robot, at.x + 4, at.y + 4);
+            robot.delay(40);
+            OsMouse.move(robot, at.x, at.y);
+            long deadline = System.currentTimeMillis() + 1000;
+            while (seen[0] == 0 && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50);
+                Edt.flush(1000);
+            }
+        } finally {
+            Toolkit.getDefaultToolkit().removeAWTEventListener(listener);
+        }
+        if (seen[0] == 0) {
+            throw new IllegalArgumentException(what + " needs the application window in front, but at " + at.x + ","
+                    + at.y + " the pointer is over another program or a locked screen (the operating system did not let "
+                    + "the application come forward). Nothing was pressed. Click the application window once and try "
+                    + "again, or leave out " + what + ": the default works in the background.");
+        }
+    }
+
+    /** Brings the window to the front and waits until it has the focus; what names the caller for the error. */
+    static void front(final Window window, String what) throws Exception {
+        Edt.call(new Callable<Object>() {
+            public Object call() {
+                Keys.noteWindow(window);
+                if (!window.isFocused()) {
+                    window.toFront();
+                    window.requestFocus();
+                }
+                return null;
+            }
+        }, 3000);
+        if (!waitFor(new Callable<Boolean>() {
+            public Boolean call() {
+                return window.isFocused();
+            }
+        })) {
+            throw new IllegalArgumentException(what + " needs the application window in front, and the operating system "
+                    + "did not let it come forward (only the program in front may do that). Click the application "
+                    + "window once and try again, or leave out " + what + ": the default needs no focus.");
+        }
     }
 
     void type(String text) throws Exception {

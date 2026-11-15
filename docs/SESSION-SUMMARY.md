@@ -1,4 +1,4 @@
-# Session summary (M1–M7, 2026-10-28 → 2026-11-05)
+# Session summary (M1–M7.1, 2026-10-28 → 2026-11-15)
 
 This file was written to continue the project on another computer with another AI agent. The first
 session took place on macOS; the next step is testing on Windows (see [WINDOWS-TEST.md](../WINDOWS-TEST.md)).
@@ -38,7 +38,7 @@ AI tool ──MCP(stdio)──▶ swing2mcp MCP server (Java 17) ──localhost
 | `demo-app` | 8 | Legacy-style test application without Spring (admin/admin) |
 | `demo-spring` | 8, Spring 5.3 | Test application with Spring (admin/admin) |
 
-All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D34, open questions C1–C3).
+All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D40, open questions C1–C3).
 
 ## Milestone history
 
@@ -51,10 +51,12 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D34, open que
 | `m5` | `hot_reload`: finds changed classes at method level and applies them; rebuilds only the screen whose setup code changed; rejects structural changes with an explanation | run (Java 8), attach Spring (Java 21), `java -jar` + `classesDir` (Java 21); the M1–M4 flows were run again |
 | `m5.1` | Windows test: fix for attaching to Java 8, a clear hot reload message when compiling with a different JDK, a manual test script | Windows 11: steps 2–7 with `mcp-steps.py`; Ctrl+C, screenshot and AI tool by the user |
 | `m7` | Like a real user: real key events (`type_text`, `press_key`, also in an inactive window), real mouse clicks, `read_items` for tables/lists/trees, tree paths and `expand_node`, `select_menu`, `handle_dialog` and `dialog=` on actions | Windows 11, Java 8: demo-app (also with the window inactive), demo-spring (incl. hot reload), the large legacy application (login with Enter, its trees, menus and Turkish message boxes) |
+| `m7.1` | Multiple selection with Ctrl/Shift (`values`, `indexes`, ranges), `drag`: in-application mouse drags (maps, sliders, dividers, columns), drag and drop through the application's TransferHandlers without the native system, real-mouse drags (`mode=os`) that first prove the window is in front | Windows 11 (125%), Java 8: demo-app (Planner tab; also with the screen locked and another program in front; `mode=os` with the user at the screen), demo-spring, the large legacy application (map panned, models dragged from its tree onto the map, multi-select in its tree and table) |
 | `m6` | Fast loop on a large legacy application: multi-module hot reload (original bytes from the jar, `-Dswing2mcp.classesDirs`), actions wait until the component is usable, uncaught application exceptions in tool results, snapshot fixes (window facades, label subclasses, refs by identity) | Windows 11, Java 8, a large legacy Swing application (two modules, Spring Boot 2.1) with `mcp-steps.py`; regression on demo-app |
 
 ## Status and next step
 
+- `m7.1` (2026-11-15) was done on the `feature/m7.1` branch; details: DESIGN.md, "M7.1 results" (D35–D40).
 - `m7` (2026-11-05) was done on the `feature/m7` branch; details: DESIGN.md, "M7 results" (D27–D34).
 - **Next step:** the open-source release (README, demo GIF, security notes), then m8 (step traces,
   record and replay without AI).
@@ -72,9 +74,7 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D34, open que
 ## Open questions / possible next milestones
 
 - User folder with spaces on Windows (not tried).
-- `type_text mode=os` / `press_key mode=os` (java.awt.Robot) have only been seen failing cleanly on a
-  locked screen; they need a check with someone at the screen.
-- Drag and drop, multiple selection with Ctrl/Shift clicks.
+- AWT drag gesture sources (no TransferHandler) only work with `mode=os`; trees as drop targets are untested.
 - Opening a panel by class name in applications without Spring (`open_panel`).
 - Drawing ref labels on the screenshot.
 - Connecting over HTTP (C3).
@@ -104,6 +104,10 @@ All decisions and their rationale: [DESIGN.md](../DESIGN.md) (D1–D34, open que
   frame is inactive. Starting Notepad does not take the foreground from a background shell.
 - In-JVM keys work on a locked screen; `java.awt.Robot` keys silently go nowhere there (`mode=os`
   detects that with an AWT event listener and reports it).
+- `java.awt.Robot` on JDK 8 for Windows moves the pointer relatively; with display scaling it lands off
+  target. `OsMouse.move` measures with `MouseInfo` and corrects. Java can report a window as focused while
+  Windows keeps another program in front (e.g. after the screen was locked): never trust Java's focus state
+  alone before pressing real keys or buttons.
 - The Bash tool's heredocs turn `\\` into `\` (also inside JSON test steps): use forward slashes in
   paths, and write edit scripts with a file instead of a heredoc.
 - The hot reload baseline is recorded in the background when the agent starts. Class files written after

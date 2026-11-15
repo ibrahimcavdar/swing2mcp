@@ -113,10 +113,11 @@ works the same.
 | `list_apps` / `connect_app` | Lists running Java applications / connects to one; if it has no agent, places it without a restart |
 | `snapshot` | Text summary of the windows, with `ref` IDs |
 | `screenshot` | PNG image of a window or component |
-| `click` | Real mouse click on a button, table cell, list item or tree node (by text or path); double click, right click, column header |
+| `click` | Real mouse click on a button, table cell, list item or tree node (by text or path); double click, right click, column header, with Ctrl/Shift |
 | `type_text` | Types real keys into a text field, password, spinner or editable combo |
 | `press_key` | Enter, Escape, Tab, arrows, F-keys and shortcuts such as Ctrl+S |
-| `select_option` | Combo, list, tab, table cell, tree node (by path) |
+| `select_option` | Combo, list, tab, table cell, tree node (by path); several rows, items or nodes with Ctrl/Shift clicks, ranges included |
+| `drag` | Mouse drag (pan a map, move a slider, a split pane divider, a table column) and drag and drop between components |
 | `read_items` | Reads tables, lists, trees and combos page by page, as they are shown |
 | `expand_node` | Expands or collapses a tree node by its path |
 | `select_menu` | Chooses a menu path such as "File > Open", also in context menus |
@@ -150,7 +151,10 @@ Actions work **like a real user**, so the application runs the same code as for 
 `press_key` send real key events (key listeners, input verifiers, length limits and shortcuts run),
 `click` sends real mouse events (the focus moves first, as with a mouse), and menus open level by level.
 The application window does not have to be in front: keys go to the application, not to the program you
-are typing in. An action that opens a dialog can answer it right away, e.g. `click` on Delete with
+are typing in. `drag` pans and moves with in-application mouse events, and does drag and drop through the
+application's own TransferHandlers (its `canImport`, `importData` and `exportDone` run, at a real drop
+location), without the operating system's drag and drop; `mode=os` uses the real mouse when that is
+needed. An action that opens a dialog can answer it right away, e.g. `click` on Delete with
 `dialog=yes`; the result repeats the dialog's message.
 
 Actions first wait until the component can take input: visible,

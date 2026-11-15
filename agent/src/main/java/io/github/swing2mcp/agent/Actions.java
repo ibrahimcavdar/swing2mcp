@@ -55,7 +55,7 @@ final class Actions {
     static final long DEFAULT_WAIT_MS = 10000;
     private static final long POLL_MS = 100;
     /** Windows opens context menus on mouse release, other systems on press (MouseEvent.isPopupTrigger). */
-    private static final boolean WINDOWS = System.getProperty("os.name", "").startsWith("Windows");
+    static final boolean WINDOWS = System.getProperty("os.name", "").startsWith("Windows");
     /** How long an action with dialog=... waits for the dialog to open. */
     private static final long DIALOG_WAIT_MS = 3000;
 
@@ -85,7 +85,9 @@ final class Actions {
     Result click(final Map<String, String> p) throws Exception {
         final Component c = header(resolve(p), p);
         final int clickCount = intParam(p, "clickCount", 1);
-        final boolean right = "right".equalsIgnoreCase(p.get("button"));
+        final int button = button(p.get("button"));
+        final boolean right = button == MouseEvent.BUTTON3;
+        final int modifiers = Keys.modifiers(p.get("modifiers"));
         final Integer rowParam = optInt(p, "row");
         final Integer col = optInt(p, "col");
         final Integer x = optInt(p, "x");
@@ -98,53 +100,17 @@ final class Actions {
             public Point call() {
                 ensureUsable(c, c instanceof JMenuItem);
                 Keys.noteWindow(Keys.windowOf(c));
-                if (c instanceof JMenuItem && clickCount == 1 && !right && x == null) {
+                if (c instanceof JMenuItem && clickCount == 1 && button == MouseEvent.BUTTON1 && modifiers == 0
+                        && x == null) {
                     return null; // use doClick: works for items of closed menus too
                 }
                 if (x != null && y != null) {
                     return new Point(x, y);
                 }
-                Integer row = rowParam;
-                Rectangle cell = null;
-                if (c instanceof JTableHeader) {
-                    JTableHeader header = (JTableHeader) c;
-                    int column = col == null ? 0 : col;
-                    checkIndex(column, header.getColumnModel().getColumnCount(), "col");
-                    cell = header.getHeaderRect(column);
-                    target[0] = " column " + column + " " + Text.quote(String.valueOf(
-                            header.getColumnModel().getColumn(column).getHeaderValue()), 60);
-                } else if (c instanceof JTable && (row != null || value != null)) {
-                    JTable table = (JTable) c;
-                    int column = col == null ? 0 : col;
-                    if (value != null) {
-                        int[] found = Items.findCell(table, value, col);
-                        row = found[0];
-                        column = found[1];
-                    }
-                    checkIndex(row, table.getRowCount(), "row");
-                    checkIndex(column, table.getColumnCount(), "col");
-                    cell = table.getCellRect(row, column, false);
-                    target[0] = " row " + row + " col " + column + " " + Text.quote(Items.cellText(table, row, column), 60);
-                } else if (c instanceof JList && (row != null || value != null)) {
-                    JList<?> list = (JList<?>) c;
-                    row = value != null ? Items.findListItem(list, value) : row;
-                    checkIndex(row, list.getModel().getSize(), "row");
-                    cell = list.getCellBounds(row, row);
-                    target[0] = " item " + row + " " + Text.quote(Items.listText(list, row), 60);
-                } else if (c instanceof JTree && (row != null || value != null)) {
-                    JTree tree = (JTree) c;
-                    if (value != null) {
-                        TreePath path = Items.findPath(tree, value, true);
-                        tree.makeVisible(path);
-                        row = tree.getRowForPath(path);
-                    }
-                    checkIndex(row, tree.getRowCount(), "row");
-                    cell = tree.getRowBounds(row);
-                    target[0] = " node " + Text.quote(Items.nodeText(tree, tree.getPathForRow(row).getLastPathComponent()), 60);
-                }
-                if (cell != null) {
-                    ((JComponent) c).scrollRectToVisible(cell);
-                    return new Point(cell.x + Math.min(cell.width / 2, 20), cell.y + cell.height / 2);
+                Spot spot = itemSpot(c, rowParam, col, value, true);
+                if (spot != null) {
+                    target[0] = spot.what;
+                    return spot.point;
                 }
                 return new Point(c.getWidth() / 2, c.getHeight() / 2);
             }
@@ -170,15 +136,20 @@ final class Actions {
                 }
             });
         }
-        List<Runnable> steps = mouse(c, point, clickCount, right);
+        List<Runnable> steps = mouse(c, new Point[]{point}, clickCount, button, modifiers, null);
         final String[] refused = new String[1];
         steps.add(new Runnable() {
             public void run() {
                 refused[0] = focusRefusedByVerifier(c);
             }
         });
-        Result result = perform(waited + (clickCount == 2 ? "Double-clicked " : right ? "Right-clicked " : "Clicked ") + what,
-                steps);
+        String verb = clickCount == 2 ? "Double-clicked " : right ? "Right-clicked "
+                : button == MouseEvent.BUTTON2 ? "Middle-clicked " : "Clicked ";
+        if (modifiers != 0) {
+            verb = InputEvent.getModifiersExText(modifiers) + "+" + verb.substring(0, 1).toLowerCase(java.util.Locale.ROOT)
+                    + verb.substring(1);
+        }
+        Result result = perform(waited + verb + what, steps);
         return refused[0] == null ? result
                 : new Result(result.message + "\n" + refused[0] + ".", result.settled, result.failed);
     }
@@ -269,6 +240,10 @@ final class Actions {
     }
 
     Result select(final Map<String, String> p) throws Exception {
+        if (!Text.isBlank(p.get("values")) || !Text.isBlank(p.get("indexes")) || !Text.isBlank(p.get("to"))
+                || "true".equalsIgnoreCase(p.get("add")) || "true".equalsIgnoreCase(p.get("deselect"))) {
+            return selectMany(p);
+        }
         final Component c = resolve(p);
         final String value = p.get("value");
         final Integer index = optInt(p, "index");
@@ -370,6 +345,213 @@ final class Actions {
             }
         });
         return perform(waited + "Selected " + Text.quote(chosen) + " in " + describe(c), action.get());
+    }
+
+    /** An entry of a multi-selection: a row/index or a value, optionally a range up to toRow/toValue. */
+    private static final class Pick {
+        final Integer row;
+        final String value;
+        final Integer toRow;
+        final String toValue;
+
+        Pick(Integer row, String value, Integer toRow, String toValue) {
+            this.row = row;
+            this.value = value;
+            this.toRow = toRow;
+            this.toValue = toValue;
+        }
+
+        boolean range() {
+            return toRow != null || toValue != null;
+        }
+
+        String label() {
+            String from = value != null ? Text.quote(value, 60) : "#" + row;
+            return range() ? from + " to " + (toValue != null ? Text.quote(toValue, 60) : "#" + toRow) : from;
+        }
+    }
+
+    /** A click of a multi-selection: on a row or value, with modifier keys, perhaps only if (not) selected. */
+    private static final class PickClick {
+        static final int ALWAYS = 0;
+        static final int IF_SELECTED = 1;
+        static final int IF_NOT_SELECTED = 2;
+        final Integer row;
+        final String value;
+        final int modifiers;
+        final int when;
+
+        PickClick(Integer row, String value, int modifiers, int when) {
+            this.row = row;
+            this.value = value;
+            this.modifiers = modifiers;
+            this.when = when;
+        }
+    }
+
+    private static List<Pick> picks(Map<String, String> p) {
+        List<Pick> picks = new ArrayList<Pick>();
+        String values = p.get("values");
+        if (!Text.isBlank(values)) {
+            for (String line : values.split("\n")) {
+                String v = line.replace("\r", "");
+                if (!Text.isBlank(v)) {
+                    picks.add(new Pick(null, v, null, null));
+                }
+            }
+        }
+        String indexes = p.get("indexes");
+        if (!Text.isBlank(indexes)) {
+            for (String part : indexes.trim().split("[,;\\s]+")) {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*(?:-|\\.\\.)\\s*(\\d+)").matcher(part);
+                try {
+                    if (m.matches()) {
+                        picks.add(new Pick(Integer.valueOf(m.group(1)), null, Integer.valueOf(m.group(2)), null));
+                    } else if (part.length() > 0) {
+                        picks.add(new Pick(Integer.valueOf(part), null, null, null));
+                    }
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("indexes must be numbers or ranges such as \"0,2,5-8\": " + indexes);
+                }
+            }
+        }
+        String value = Text.isBlank(p.get("value")) ? null : p.get("value");
+        Integer index = optInt(p, "index");
+        String to = Text.isBlank(p.get("to")) ? null : p.get("to");
+        if (value != null || index != null) {
+            Integer toRow = null;
+            if (to != null && value == null) {
+                try {
+                    toRow = Integer.valueOf(to.trim());
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("With index, to must be an index too: " + to);
+                }
+            }
+            picks.add(new Pick(index, value, toRow, value != null ? to : null));
+        } else if (to != null) {
+            throw new IllegalArgumentException("to ends a range: give its start as value or index");
+        }
+        if (picks.isEmpty()) {
+            throw new IllegalArgumentException("Say what to select: value, index, values or indexes");
+        }
+        return picks;
+    }
+
+    /**
+     * Selects several entries of a list, table or tree like a user, with real clicks: the first
+     * entry with a plain click (Ctrl with add=true), the others with Ctrl, a range's end with
+     * Shift (Ctrl+Shift after the first). deselect=true Ctrl-clicks the entries that are selected.
+     */
+    private Result selectMany(final Map<String, String> p) throws Exception {
+        final Component c = resolve(p);
+        final Integer col = optInt(p, "col");
+        final boolean add = "true".equalsIgnoreCase(p.get("add"));
+        final boolean deselect = "true".equalsIgnoreCase(p.get("deselect"));
+        final List<Pick> picks = picks(p);
+        final StringBuilder waited = new StringBuilder();
+        final List<PickClick> clicks = whenUsable(p, waited, new Callable<List<PickClick>>() {
+            public List<PickClick> call() {
+                ensureUsable(c, false);
+                if (!(c instanceof JList || c instanceof JTable || c instanceof JTree)) {
+                    throw new IllegalArgumentException("Several entries can be selected in lists, tables and trees, not in "
+                            + describe(c));
+                }
+                // find every entry first (tree paths get expanded), so that a missing one stops before any click
+                for (Pick pick : picks) {
+                    itemSpot(c, pick.row, col, pick.value, false);
+                    if (pick.range()) {
+                        itemSpot(c, pick.toRow, col, pick.toValue, false);
+                    }
+                }
+                List<PickClick> list = new ArrayList<PickClick>();
+                boolean first = true;
+                for (Pick pick : picks) {
+                    if (deselect) {
+                        if (pick.range()) {
+                            Spot from = itemSpot(c, pick.row, col, pick.value, false);
+                            Spot to = itemSpot(c, pick.toRow, col, pick.toValue, false);
+                            for (int r = Math.min(from.row, to.row); r <= Math.max(from.row, to.row); r++) {
+                                list.add(new PickClick(r, null, InputEvent.CTRL_DOWN_MASK, PickClick.IF_SELECTED));
+                            }
+                        } else {
+                            list.add(new PickClick(pick.row, pick.value, InputEvent.CTRL_DOWN_MASK, PickClick.IF_SELECTED));
+                        }
+                    } else {
+                        int m = first && !add ? 0 : InputEvent.CTRL_DOWN_MASK;
+                        list.add(new PickClick(pick.row, pick.value, m, m == 0 ? PickClick.ALWAYS : PickClick.IF_NOT_SELECTED));
+                        if (pick.range()) {
+                            list.add(new PickClick(pick.toRow, pick.toValue, m | InputEvent.SHIFT_DOWN_MASK, PickClick.ALWAYS));
+                        }
+                    }
+                    first = false;
+                }
+                Keys.noteWindow(Keys.windowOf(c));
+                return list;
+            }
+        });
+
+        List<Runnable> steps = new ArrayList<Runnable>();
+        for (final PickClick click : clicks) {
+            final Point[] at = new Point[1];
+            final Spot[] spot = new Spot[1];
+            steps.add(new Runnable() {
+                public void run() {
+                    // located just before the click (scrolled into view), as a user would
+                    Integer column = col;
+                    if (column == null && click.value == null && c instanceof JTable) {
+                        column = selectionColumn((JTable) c, click.row);
+                    }
+                    spot[0] = itemSpot(c, click.row, column, click.value, true);
+                    at[0] = spot[0].point;
+                }
+            });
+            steps.addAll(mouse(c, at, 1, MouseEvent.BUTTON1, click.modifiers, click.when == PickClick.ALWAYS ? null
+                    : new Callable<Boolean>() {
+                public Boolean call() {
+                    return isSelected(c, spot[0]) == (click.when == PickClick.IF_SELECTED);
+                }
+            }));
+        }
+        final String[] outcome = {""};
+        steps.add(new Runnable() {
+            public void run() {
+                outcome[0] = "\nNow selected: " + Items.selectionText(c) + "." + Items.selectionModeNote(c, picks.size() > 1
+                        || picks.get(0).range() || add);
+            }
+        });
+        StringBuilder labels = new StringBuilder();
+        for (Pick pick : picks) {
+            labels.append(labels.length() > 0 ? ", " : "").append(pick.label());
+        }
+        Result result = perform(waited + (deselect ? "Deselected " : add ? "Added to the selection " : "Selected ")
+                + labels + " in " + describe(c) + " (Ctrl/Shift clicks)", steps);
+        return new Result(result.message + outcome[0], result.settled, result.failed);
+    }
+
+    /**
+     * The column to click to select a row: the first one the user cannot edit there (a click on
+     * a check box cell would toggle it), else column 0.
+     */
+    static int selectionColumn(JTable table, int row) {
+        if (row < 0 || row >= table.getRowCount()) {
+            return 0;
+        }
+        for (int column = 0; column < table.getColumnCount(); column++) {
+            if (!table.isCellEditable(row, column)) {
+                return column;
+            }
+        }
+        return 0;
+    }
+
+    private static boolean isSelected(Component c, Spot spot) {
+        if (c instanceof JList) {
+            return ((JList<?>) c).isSelectedIndex(spot.row);
+        }
+        if (c instanceof JTable) {
+            return ((JTable) c).isCellSelected(spot.row, spot.col);
+        }
+        return c instanceof JTree && ((JTree) c).isRowSelected(spot.row);
     }
 
     /**
@@ -689,7 +871,11 @@ final class Actions {
 
     /** header=true on a table clicks its column header (e.g. to sort) instead of a cell. */
     private static Component header(Component c, Map<String, String> p) {
-        if (!"true".equalsIgnoreCase(p.get("header"))) {
+        return header(c, p.get("header"));
+    }
+
+    static Component header(Component c, String flag) {
+        if (!"true".equalsIgnoreCase(flag)) {
             return c;
         }
         if (!(c instanceof JTable) || ((JTable) c).getTableHeader() == null) {
@@ -1012,6 +1198,11 @@ final class Actions {
      * opens a modal dialog does not block the next ones: the dialog's event loop runs them.
      */
     static Result perform(String description, List<Runnable> steps) {
+        return perform(description, steps, 0);
+    }
+
+    /** As perform, with a pause of gapMs between the steps (e.g. the moves of a mouse drag take time). */
+    static Result perform(String description, List<Runnable> steps, long gapMs) {
         final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
         boolean settled = true;
         int done = 0;
@@ -1032,6 +1223,9 @@ final class Actions {
             settled = Edt.flush(SETTLE_TIMEOUT_MS);
             if (!settled || failure.get() != null) {
                 break;
+            }
+            if (gapMs > 0 && done < steps.size()) {
+                sleep(gapMs);
             }
         }
         StringBuilder sb = new StringBuilder(description);
@@ -1057,7 +1251,7 @@ final class Actions {
     }
 
     /** Lets follow-up invokeLater calls and repaints run before the result is reported. */
-    private static Result settle(StringBuilder sb, boolean settledSoFar) {
+    static Result settle(StringBuilder sb, boolean settledSoFar) {
         boolean settled = settledSoFar;
         if (settled) {
             sleep(150);
@@ -1136,7 +1330,7 @@ final class Actions {
     }
 
     /** Must be called on the EDT. */
-    private static void ensureUsable(Component c, boolean allowHidden) {
+    static void ensureUsable(Component c, boolean allowHidden) {
         if (!allowHidden && !c.isShowing()) {
             throw new NotReady(describe(c) + " is not visible", "; if it should be, take a new snapshot");
         }
@@ -1202,29 +1396,143 @@ final class Actions {
      * the button's action, as with a real mouse.
      */
     private static List<Runnable> mouse(final Component c, final Point p, int count, final boolean right) {
-        final int button = right ? MouseEvent.BUTTON3 : MouseEvent.BUTTON1;
-        final int downMask = right ? InputEvent.BUTTON3_DOWN_MASK : InputEvent.BUTTON1_DOWN_MASK;
+        return mouse(c, new Point[]{p}, count, right ? MouseEvent.BUTTON3 : MouseEvent.BUTTON1, 0, null);
+    }
+
+    /**
+     * Clicks at[0] (a holder, so that an earlier step can fill it in) with the given button and
+     * modifier keys (InputEvent.*_DOWN_MASK). With when, the click is only done if it returns true
+     * at the time of the press.
+     */
+    static List<Runnable> mouse(final Component c, final Point[] at, int count, final int button,
+                                final int modifiers, final Callable<Boolean> when) {
+        final int downMask = InputEvent.getMaskForButton(button);
+        final boolean popupButton = button == MouseEvent.BUTTON3;
+        final boolean[] skip = {false};
         List<Runnable> steps = new ArrayList<Runnable>();
         for (int i = 1; i <= count; i++) {
             final int n = i;
             steps.add(new Runnable() {
                 public void run() {
+                    if (n == 1 && when != null) {
+                        try {
+                            skip[0] = !when.call();
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+                    }
+                    if (skip[0]) {
+                        return;
+                    }
+                    Point p = at[0];
                     Window window = Keys.windowOf(c);
                     Component before = Keys.focusOwner(window);
-                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), downMask,
-                            p.x, p.y, n, right && !WINDOWS, button));
+                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(),
+                            modifiers | downMask, p.x, p.y, n, popupButton && !WINDOWS, button));
                     Keys.syncFocus(window, before);
                 }
             });
             steps.add(new Runnable() {
                 public void run() {
+                    if (skip[0]) {
+                        return;
+                    }
+                    Point p = at[0];
                     long now = System.currentTimeMillis();
-                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_RELEASED, now, 0, p.x, p.y, n, right && WINDOWS, button));
-                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_CLICKED, now, 0, p.x, p.y, n, false, button));
+                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_RELEASED, now, modifiers, p.x, p.y, n,
+                            popupButton && WINDOWS, button));
+                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_CLICKED, now, modifiers, p.x, p.y, n, false, button));
                 }
             });
         }
         return steps;
+    }
+
+    /** left (default), right or middle. */
+    static int button(String name) {
+        if (Text.isBlank(name) || "left".equalsIgnoreCase(name.trim())) {
+            return MouseEvent.BUTTON1;
+        }
+        if ("right".equalsIgnoreCase(name.trim())) {
+            return MouseEvent.BUTTON3;
+        }
+        if ("middle".equalsIgnoreCase(name.trim())) {
+            return MouseEvent.BUTTON2;
+        }
+        throw new IllegalArgumentException("button must be left, right or middle");
+    }
+
+    /** A point in a component and what is there (for messages); row/col of the cell, item or node, else -1. */
+    static final class Spot {
+        final Point point;
+        final String what;
+        final int row;
+        final int col;
+        /** The cell, item or part the point is in, if known. */
+        final Rectangle cell;
+
+        Spot(Point point, String what, int row, int col, Rectangle cell) {
+            this.point = point;
+            this.what = what;
+            this.row = row;
+            this.col = col;
+            this.cell = cell;
+        }
+    }
+
+    /**
+     * On the EDT: the table cell, header column, list item or tree node given by row/col or value
+     * (a cell's text, an item's text, a tree path), optionally scrolled into view; null when the
+     * component has no such parts or none was given.
+     */
+    static Spot itemSpot(Component c, Integer rowParam, Integer col, String value, boolean scroll) {
+        Integer row = rowParam;
+        Rectangle cell;
+        String what;
+        int column = -1;
+        if (c instanceof JTableHeader) {
+            JTableHeader header = (JTableHeader) c;
+            column = col == null ? 0 : col;
+            checkIndex(column, header.getColumnModel().getColumnCount(), "col");
+            cell = header.getHeaderRect(column);
+            what = " column " + column + " " + Text.quote(String.valueOf(
+                    header.getColumnModel().getColumn(column).getHeaderValue()), 60);
+            row = -1;
+        } else if (c instanceof JTable && (row != null || value != null)) {
+            JTable table = (JTable) c;
+            column = col == null ? 0 : col;
+            if (value != null) {
+                int[] found = Items.findCell(table, value, col);
+                row = found[0];
+                column = found[1];
+            }
+            checkIndex(row, table.getRowCount(), "row");
+            checkIndex(column, table.getColumnCount(), "col");
+            cell = table.getCellRect(row, column, false);
+            what = " row " + row + " col " + column + " " + Text.quote(Items.cellText(table, row, column), 60);
+        } else if (c instanceof JList && (row != null || value != null)) {
+            JList<?> list = (JList<?>) c;
+            row = value != null ? Items.findListItem(list, value) : row;
+            checkIndex(row, list.getModel().getSize(), "row");
+            cell = list.getCellBounds(row, row);
+            what = " item " + row + " " + Text.quote(Items.listText(list, row), 60);
+        } else if (c instanceof JTree && (row != null || value != null)) {
+            JTree tree = (JTree) c;
+            if (value != null) {
+                TreePath path = Items.findPath(tree, value, true);
+                tree.makeVisible(path);
+                row = tree.getRowForPath(path);
+            }
+            checkIndex(row, tree.getRowCount(), "row");
+            cell = tree.getRowBounds(row);
+            what = " node " + Text.quote(Items.nodeText(tree, tree.getPathForRow(row).getLastPathComponent()), 60);
+        } else {
+            return null;
+        }
+        if (scroll) {
+            ((JComponent) c).scrollRectToVisible(cell);
+        }
+        return new Spot(new Point(cell.x + Math.min(cell.width / 2, 20), cell.y + cell.height / 2), what, row, column, cell);
     }
 
     /** Type and visible name of a component for messages, e.g. JTextField "Email". */
@@ -1292,7 +1600,7 @@ final class Actions {
         throw new IllegalArgumentException("No option matching " + Text.quote(value) + "; options: " + items);
     }
 
-    private static void checkIndex(int i, int size, String what) {
+    static void checkIndex(int i, int size, String what) {
         if (i < 0 || i >= size) {
             throw new IllegalArgumentException(what + " " + i + " out of range (0.." + (size - 1) + ")");
         }
@@ -1303,7 +1611,7 @@ final class Actions {
         return v == null ? def : v;
     }
 
-    private static Integer optInt(Map<String, String> p, String key) {
+    static Integer optInt(Map<String, String> p, String key) {
         String v = p.get(key);
         if (Text.isBlank(v)) {
             return null;

@@ -220,6 +220,11 @@ final class SnapshotBuilder {
             return;
         }
         if (!(c instanceof Container) || c instanceof JLabel) {
+            if (c instanceof java.awt.Canvas || (!(c instanceof Container) && !Naming.isJdkClass(c.getClass()))) {
+                // a heavyweight AWT component (e.g. an OpenGL map view): not painted by Swing
+                line(depth, "canvas " + c.getClass().getSimpleName() + ref(c) + " " + c.getWidth() + "x" + c.getHeight()
+                        + " (drawn outside Swing; screenshot may not show it)" + fieldSuffix(c));
+            }
             return; // e.g. a label (also a subclass) already used as a field's name, or without text
         }
         Container container = (Container) c;
@@ -257,6 +262,11 @@ final class SnapshotBuilder {
         }
         if (c instanceof JInternalFrame) {
             return "internalframe " + Text.quote(((JInternalFrame) c).getTitle()) + ref(c) + classSuffix(c);
+        }
+        if (c instanceof javax.swing.JSplitPane) {
+            javax.swing.JSplitPane split = (javax.swing.JSplitPane) c;
+            return "splitpane " + (split.getOrientation() == javax.swing.JSplitPane.HORIZONTAL_SPLIT ? "horizontal" : "vertical")
+                    + ref(c) + " divider=" + split.getDividerLocation() + fieldSuffix(c);
         }
         if (c instanceof JToolBar) {
             return "toolbar" + (title != null ? " " + Text.quote(title) : "") + ref(c);
@@ -336,7 +346,10 @@ final class SnapshotBuilder {
         if (c instanceof JTable) {
             JTable table = (JTable) c;
             return "table" + named(c) + ref(c) + " rows=" + table.getRowCount() + " cols=" + table.getColumnCount()
-                    + selection(table.getSelectedRows()) + states(c) + fieldSuffix(c);
+                    + selection(table.getSelectedRows())
+                    + (table.getColumnSelectionAllowed() && table.getSelectedColumnCount() > 0
+                    ? " selectedCols=[" + Items.ranges(table.getSelectedColumns(), 20) + "]" : "")
+                    + states(c) + fieldSuffix(c);
         }
         if (c instanceof JTree) {
             JTree tree = (JTree) c;
@@ -510,12 +523,10 @@ final class SnapshotBuilder {
         if (path == null) {
             return "";
         }
-        StringBuilder sb = new StringBuilder();
-        for (int i = tree.isRootVisible() ? 0 : 1; i < path.getPathCount(); i++) {
-            sb.append(sb.length() > 0 ? "/" : "").append(Items.nodeText(tree, path.getPathComponent(i)));
+        if (tree.getSelectionCount() <= 1) {
+            return " selected=" + Text.quote(Items.pathText(tree, path));
         }
-        int count = tree.getSelectionCount();
-        return " selected=" + Text.quote(sb.toString()) + (count > 1 ? " (+" + (count - 1) + " more)" : "");
+        return " selected=[" + Items.selectedPaths(tree, 5) + "]";
     }
 
     private void menuBar(JMenuBar bar, int depth) {
@@ -602,14 +613,7 @@ final class SnapshotBuilder {
         if (indices == null || indices.length == 0) {
             return "";
         }
-        StringBuilder sb = new StringBuilder(" selected=[");
-        for (int i = 0; i < Math.min(indices.length, 20); i++) {
-            sb.append(i > 0 ? "," : "").append(indices[i]);
-        }
-        if (indices.length > 20) {
-            sb.append(",…");
-        }
-        return sb.append(']').toString();
+        return " selected=[" + Items.ranges(indices, 20) + "]";
     }
 
     private String named(Component c) {

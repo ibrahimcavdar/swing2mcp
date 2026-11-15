@@ -58,6 +58,12 @@ over MCP, without touching the product's code.
 | D32 | Menus are opened **level by level** (MenuSelectionManager, as the mouse does), so listeners that fill or enable items when a menu opens run; a disabled item is reported, not clicked. `select_menu` takes paths ("File > Export > PDF"), `context=true` right-clicks a component and uses its context menu. A click on an item of a closed menu takes the same route | Legacy applications often enable menu items when the menu opens; clicking a closed item directly skipped that code |
 | D33 | Dialogs: `handle_dialog` presses a button by its text or by **role** (ok, yes, no, cancel, open, save, mapped through the look and feel's texts so it works in any UI language; "close" is the window's close box), types the answer of an input dialog, or puts a path into a file chooser (the standard UI's file name field, then its Open/Save button). Actions take `dialog=<button>` to answer the modal dialog they open (an error if none opens within 3 s). The result repeats the dialog's title and message | Confirmations and messages are where tests check outcomes; a one-call "click Delete, answer Yes" keeps scripts short and readable |
 | D34 | When the application exits during a call (Exit, Alt+F4), the MCP server reports that as the result, not as an error | Closing the application is a valid outcome of an action |
+| D35 | **Multiple selection is done with real clicks**: `click` takes modifier keys; `select_option` with `values`, `indexes` ("0,2,5-8") or `value`+`to` clicks the first entry plainly (Ctrl with `add=true`), the others with Ctrl and a range's end with Shift; `deselect=true` Ctrl-clicks only the selected ones. Entries are located (and scrolled to) just before each click; all are checked first, so a missing one stops before anything is clicked. In tables the click goes to the first cell the user cannot edit. The result lists what is selected afterwards and says when the selection mode allows less. A single `select_option` keeps setting the selection directly (D31) | The look and feel's own mouse code decides what Ctrl/Shift do (anchor, toggles, single-selection modes), as for a user; a click on a check box cell would toggle it |
+| D36 | **One `drag` tool with modes**: `mouse` (in-application events), `transfer` (Swing data transfer), `os` (`java.awt.Robot`); `auto` (default) picks `transfer` for drag-enabled sources and `mouse` otherwise. Start and end by item (value/row/col, `at=before/on/after`, `edge=` for borders), slider value or divider location (`toValue`), `dx`/`dy` or x/y | Same shape as `type_text mode=os`: one place to learn; the AI names what to drag, not pixels. Exception to D7: a slider thumb's height is read from the look and feel's protected `thumbRect` on Java 8 only (Java 9+ uses the slider's middle) |
+| D37 | Mouse drags are **dispatched to the window (or heavyweight) under the start point**, as the operating system does, so AWT's lightweight dispatcher picks the component, sends enter/exit and keeps the drag with the pressed component until the release (mouse grab). Press, moves spread over `durationMs` and release are separate UI steps. The result reports what changed for known components (slider value, divider, column widths and order, internal frame bounds) and, for custom-painted ones, whether their picture changed (waiting up to 1.5 s for background rendering) | Dispatching to the component directly would skip glass panes, child components such as a split pane's divider and the grab; real applications (a GIS view) render asynchronously |
+| D38 | In-application mouse events are **refused on a drag source** (dragEnabled with a TransferHandler, or an AWT drag gesture recognizer): they would start the operating system's drag and drop, which then drops wherever the real pointer is, possibly into another program | Safety: a test must never drop data into the user's other programs |
+| D39 | **Drag and drop without the native system**: the source's TransferHandler creates the data (`createTransferable`), the drop target under the end point gets drag-enter, drag-over and drop events whose data methods are overridden to read that data directly, and the source finishes with `exportDone` (MOVE/COPY/NONE, as the drop answered). The drop location (`JList`/`JTable`/`JTree`/text) comes from Swing itself. `createTransferable`/`exportDone` are protected: called by reflection on the application's own handler classes (and on Java 8); for the JDK's own handlers on Java 9+ the public `exportToClipboard` with a private clipboard and COPY is used | Works in the background and on a locked screen; `canImport`/`importData` get a real drop TransferSupport, so application code runs unchanged. Only public JDK API plus the application's own methods (D7) |
+| D40 | `mode=os` (keys and drags) first **proves the window is in front**: it moves the pointer over the target and requires that move to arrive in the application; otherwise nothing is pressed. Robot pointer moves are measured with `MouseInfo` and corrected (JDK 8 moves relatively; on a 125% display it landed up to 10% off). The pointer is put back afterwards | Seen in testing: Windows kept another program in front while Java still believed its window was focused, so presses went to a browser. Exact start and end points are needed for slider thumbs and dividers |
 
 ## Components
 
@@ -115,6 +121,7 @@ then tooltip, then the JLabel to its left/above it, and last the field's variabl
 | **M5** ✅ | Hot reload: loading compiled classes into the running JVM (`hot_reload`); rebuilding screens whose setup code changed, keeping the screen state for other changes |
 | **M6** ✅ | A fast, trustworthy edit → reload → check loop on a large legacy application: multi-module hot reload, waiting before actions, application errors in tool results, snapshot fixes |
 | **M7** ✅ | Like a real user: real key and mouse events, reading tables and trees, dialogs, menu paths |
+| **M7.1** ✅ | Multiple selection with Ctrl/Shift, mouse drags (maps, sliders, dividers, columns), drag and drop through the application's TransferHandlers, real-mouse drags (`mode=os`) |
 | (open) | Opening a panel by class name in applications without Spring (`open_panel(class)`) |
 
 ## M1 results (2026-10-29, macOS)
@@ -271,6 +278,46 @@ mouse events; actions take `dialog=<button>`.
   check with someone at the screen.
 - Not covered: drag and drop, multiple selection with Ctrl/Shift clicks, the inactive-window path on the
   legacy application, typing through native input methods (IME).
+
+## M7.1 results (2026-11-15, Windows 11, display scale 125%)
+
+Tools: `drag` (new); `click` takes `modifiers` and `button=middle`; `select_option` takes `values`, `indexes`,
+`to`, `add`, `deselect`; `read_items` and the snapshot report the selection mode and multiple selections as
+ranges ("selected=[2-4,30]", all selected tree paths); the snapshot lists split panes with their divider and
+heavyweight canvases.
+
+- **demo-app (Java 8)** got a "Planner" tab: two multi-select lists with a TransferHandler (move/copy,
+  reorder), a table and a plain label as drop targets, a split pane, a zoom slider and a custom-painted map
+  that pans with the mouse.
+  - Multiple selection in lists, the invoice table and the category tree: values, index ranges, add,
+    deselect, Ctrl/Shift clicks; a single-selection table is reported.
+  - Mouse drags: the map panned exactly by the drag; slider to a value; divider by an offset and to a
+    location; a column resized by its border (169 → 229 px) and moved. A drag from a table that is not a
+    drag source is a plain mouse drag and the result says so; a mouse drag on a drag-enabled list is refused.
+  - Drag and drop: two selected items moved to another list before a given item, an item reordered in its
+    list, Ctrl+drag copied to the table (insert row), a move onto the label deleted the item; refusals
+    (no drop target, link not allowed) are errors with the reason.
+  - All of this also with the screen locked and with another program in front.
+  - `mode=os` with someone at the screen: slider (exactly 300), divider (360), map (exactly 150,80) and a
+    native list-to-list drag and drop dropped before the given item; `type_text`/`press_key mode=os`
+    typed. With an always-on-top window over the application, `drag` and `press_key mode=os` refused and
+    that window received no press and no key.
+- **demo-spring (Java 8)**: login with keys, multi-select in the customer table, menu path, spinner, Spring
+  beans.
+- **The large legacy application** (Java 8, its GIS map is a lightweight Swing component that renders in
+  the background): the map panned by a mouse drag with the screen locked (a placed object moved exactly by
+  the drag; the cursor-position fields in the status bar confirmed it); dragging a model from its model
+  tree onto the map created an object there, through the application's own mouse code (the tree is not a
+  Swing drag source); multiple selection in its scenario tree and in a table; its model tree is
+  single-selection and was reported as such.
+- Found and fixed during the tests: Robot on JDK 8 moves the pointer relatively (up to 10% off at 125%),
+  now measured and corrected; Java may report a window as focused while Windows keeps another program in
+  front, so `mode=os` now proves the window is in front first (D40); a picture comparison that rounded
+  small changes to "no change".
+- The last three fixes were checked on the legacy application too: the map's picture change is reported
+  (<1% for a pan of a mostly empty map), the note after a drag from its model tree (which created another
+  object), and a multi-select in a table whose first column is a check box left the check boxes alone.
+- Not covered: AWT drag gesture sources in `transfer` mode (they need `mode=os`); trees as drop targets.
 
 ## Risks / to be verified
 
