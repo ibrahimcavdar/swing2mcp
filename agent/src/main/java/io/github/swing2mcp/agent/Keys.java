@@ -119,6 +119,20 @@ final class Keys {
         return new Stroke(modifiers, code, typedChar(modifiers, code, namedChar(code)), token);
     }
 
+    /** Modifier keys held during a mouse action, e.g. "Ctrl", "Shift", "Ctrl+Shift"; 0 when blank. */
+    static int modifiers(String spec) {
+        if (Text.isBlank(spec)) {
+            return 0;
+        }
+        int mask = 0;
+        for (String part : spec.trim().split("\\s*[+,\\s]\\s*")) {
+            if (part.length() > 0) {
+                mask |= modifier(part, spec);
+            }
+        }
+        return mask;
+    }
+
     private static int modifier(String name, String token) {
         String n = name.toUpperCase(Locale.ROOT);
         if (n.equals("CTRL") || n.equals("CONTROL")) {

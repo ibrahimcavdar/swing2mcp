@@ -46,7 +46,9 @@ import java.util.concurrent.ThreadFactory;
  *   POST /expand ref, path, collapse  expand or collapse a tree node
  *   POST /dialog ref, button, text, path   answer a dialog (message box, input, file chooser)
  *   POST /menu   path, ref, context   open a menu path ("File > Open") and click its last item
- *   (click, type, select and key also take dialog=<button>: answer the dialog the action opens)
+ *   POST /drag   ref, x, y, row, col, value, header, edge, toRef, toX, toY, toRow, toCol, toValue, at, dx, dy,
+ *                steps, durationMs, button, modifiers, mode (auto | mouse | transfer | os), action
+ *   (click, type, select, key, menu and drag also take dialog=<button>: answer the dialog the action opens)
  *   GET  /read   ref, start, limit, find, columns, path, depth   rows/items/nodes, paged
  *   GET  /wait?text&gone&timeoutMs
  *   GET  /spring/beans?filter          Spring beans, if a Spring context can be found
@@ -60,12 +62,13 @@ final class AgentServer {
     private static final long SNAPSHOT_TIMEOUT_MS = 5000;
 
     private static final java.util.Set<String> ACTIONS = new java.util.HashSet<String>(java.util.Arrays.asList(
-            "/click", "/type", "/select", "/key", "/expand", "/dialog", "/menu", "/spring/open", "/reload"));
+            "/click", "/type", "/select", "/key", "/expand", "/dialog", "/menu", "/drag", "/spring/open", "/reload"));
 
     private final String token;
     private final Object actionLock = new Object();
     private final RefRegistry refs = new RefRegistry();
     private final Actions actions = new Actions(refs);
+    private final Drags drags = new Drags(refs);
     private final SpringSupport spring;
     private final HotReload hotReload;
 
@@ -153,6 +156,12 @@ final class AgentServer {
                     action(exchange, actions.answering(params, new Callable<Actions.Result>() {
                         public Actions.Result call() throws Exception {
                             return actions.selectMenu(params);
+                        }
+                    }));
+                } else if ("/drag".equals(path)) {
+                    action(exchange, actions.answering(params, new Callable<Actions.Result>() {
+                        public Actions.Result call() throws Exception {
+                            return drags.drag(params);
                         }
                     }));
                 } else if ("/dialog".equals(path)) {

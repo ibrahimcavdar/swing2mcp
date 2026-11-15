@@ -147,7 +147,9 @@ final class Tools {
                 handlers run). Menu items, even inside closed menus, are activated directly. \
                 For tables, lists and trees pass `value` (the cell's text, the item's text, or a tree \
                 path like "Root/Child") or `row` (and `col` for tables). Use clickCount=2 for \
-                double-click, button=right for context menus. %WAITS% Returns the new snapshot.""", """
+                double-click, button=right for context menus, modifiers="Ctrl" or "Shift" to add to or extend \
+                the selection (select_option with values/indexes does several at once). %WAITS% Returns the \
+                new snapshot.""", """
                 {"type":"object","properties":{
                   "ref":{"type":"string"},
                   "value":{"type":"string","description":"Table: text of a cell to click (first match; limit with col). List: item text. Tree: node path, ancestors get expanded"},
@@ -155,7 +157,8 @@ final class Tools {
                   "col":{"type":"integer","description":"Table column"},
                   "header":{"type":"boolean","description":"Table: click the header of column col (e.g. to sort)"},
                   "clickCount":{"type":"integer","description":"2 for double-click"},
-                  "button":{"type":"string","enum":["left","right"]},
+                  "button":{"type":"string","enum":["left","right","middle"]},
+                  "modifiers":{"type":"string","description":"Keys held during the click: Ctrl, Shift, Alt, Meta, or combined like Ctrl+Shift"},
                   "x":{"type":"integer","description":"Explicit x inside the component"},
                   "y":{"type":"integer","description":"Explicit y inside the component"},
                   %DIALOG%,
@@ -203,15 +206,34 @@ final class Tools {
                 tab pane, table or tree. Table: value is the text of any cell of the row (limit it to a \
                 column with col); the cell is selected as by a click. Tree: value is a path like \
                 "Root/Child/Leaf" (the root may be left out; " > " also separates); ancestors are expanded \
-                on the way, as a user would. %WAITS% Returns the new snapshot.""", """
+                on the way, as a user would. Several entries of a list, table or tree: `values` or \
+                `indexes` (ranges like "2-5"), or a range from value/index `to` another; they are \
+                selected with real clicks, the first plain, the others with Ctrl, a range's end with \
+                Shift. add=true keeps the current selection; deselect=true Ctrl-clicks the given \
+                entries that are selected. The result lists what is selected afterwards. %WAITS% \
+                Returns the new snapshot.""", """
                 {"type":"object","properties":{
                   "ref":{"type":"string"},
                   "value":{"type":"string"},
                   "index":{"type":"integer","description":"Position; for tables the row, for trees the visible row"},
+                  "values":{"type":"array","items":{"type":"string"},"description":"Several entries by text (table: a cell's text; tree: paths)"},
+                  "indexes":{"type":"string","description":"Several positions and ranges, e.g. 0,2,5-8 (table rows, list items, visible tree rows)"},
+                  "to":{"type":"string","description":"End of a range that starts at value (text) or index (number)"},
+                  "add":{"type":"boolean","description":"Keep the current selection and add to it (Ctrl)"},
+                  "deselect":{"type":"boolean","description":"Remove the given entries from the selection (Ctrl-click the selected ones)"},
                   "col":{"type":"integer","description":"Table column to search in or select"},
                   %DIALOG%,
                   %TIMEOUT%
-                },"required":["ref"]}""", args -> text(apps.current().post("/select", params(args), actionTimeout(args))));
+                },"required":["ref"]}""", args -> {
+            Map<String, Object> form = params(args);
+            if (args.get("values") instanceof List<?> list) {
+                form.put("values", String.join("\n", list.stream().map(String::valueOf).toList()));
+            }
+            if (args.get("indexes") instanceof List<?> list) {
+                form.put("indexes", String.join(",", list.stream().map(String::valueOf).toList()));
+            }
+            return text(apps.current().post("/select", form, actionTimeout(args)));
+        });
 
         tool("select_menu", """
                 Choose a menu item like a user: path such as "File > Export > PDF" in the window's menu \
@@ -229,8 +251,61 @@ final class Tools {
                   %TIMEOUT%
                 },"required":["path"]}""", args -> text(apps.current().post("/menu", params(args), actionTimeout(args))));
 
+        tool("drag", """
+                Drag with the mouse like a user: press at the start, move, release at the end. The start \
+                is ref (an item by value/row/col, a slider's thumb, a split pane's divider, x/y, or its \
+                center; edge=right starts at a cell's or header column's right border, e.g. to resize a \
+                column). The end is dx/dy from the start, or toRef with toValue (item text or tree path; \
+                a number for a slider value or divider location), toRow/toCol, at=before/on/after, or \
+                toX/toY. mode=auto (default) picks: \
+                mouse - real mouse events inside the application (pan a map or canvas, move a slider, a \
+                divider, a table column; window may be in the background); \
+                transfer - drag and drop between components through the application's TransferHandlers \
+                (lists, tables, trees, text, drop zones): the source's data is dropped on the target at a \
+                real drop location, canImport/importData and the source's exportDone run as for a user, \
+                without the operating system's drag and drop; picked for drag-enabled sources; \
+                os - the real mouse pointer (window comes to the front; only for drag and drop that \
+                needs the operating system). The result says what changed (slider value, divider, column \
+                widths, a custom component's picture) or what the drop did. %WAITS% Returns the new \
+                snapshot.""", """
+                {"type":"object","properties":{
+                  "ref":{"type":"string","description":"Component to start the drag in"},
+                  "value":{"type":"string","description":"Start on this item (list item text, table cell text, tree path)"},
+                  "row":{"type":"integer"},
+                  "col":{"type":"integer"},
+                  "header":{"type":"boolean","description":"Table: start on the header of column col (move or, with edge=right, resize it)"},
+                  "edge":{"type":"string","enum":["left","right","top","bottom"],"description":"Start at this border of the item or header column"},
+                  "x":{"type":"integer","description":"Start x inside ref"},
+                  "y":{"type":"integer","description":"Start y inside ref"},
+                  "dx":{"type":"integer","description":"Move this far right (negative: left) from the start"},
+                  "dy":{"type":"integer","description":"Move this far down (negative: up) from the start"},
+                  "toRef":{"type":"string","description":"Component to drop on or drag to (default: ref)"},
+                  "toValue":{"type":"string","description":"Target item text or tree path; a number for a slider value or split pane divider location"},
+                  "toRow":{"type":"integer","description":"Target row/item; the row count means after the last one"},
+                  "toCol":{"type":"integer"},
+                  "toHeader":{"type":"boolean","description":"Table: the end is on toRef's header (column toCol)"},
+                  "at":{"type":"string","enum":["before","on","after"],"description":"Where on the target item to drop (default on)"},
+                  "toX":{"type":"integer"},
+                  "toY":{"type":"integer"},
+                  "mode":{"type":"string","enum":["auto","mouse","transfer","os"]},
+                  "action":{"type":"string","enum":["move","copy","link"],"description":"Drag and drop action (default: move if the source allows it; Ctrl means copy)"},
+                  "button":{"type":"string","enum":["left","right","middle"]},
+                  "modifiers":{"type":"string","description":"Keys held during the drag, e.g. Ctrl, Shift"},
+                  "steps":{"type":"integer","description":"Number of mouse moves (default about one per 12 px)"},
+                  "durationMs":{"type":"integer","description":"How long the moves take (default 300; os 500)"},
+                  %DIALOG%,
+                  %TIMEOUT%
+                },"required":["ref"]}""", args -> text(apps.current().post("/drag", params(args), actionTimeout(args))));
+
         tool("handle_dialog", """
-                Answer a dialog like a user: press one of its buttons by text or by role (ok, yes, no,                 cancel; open/save in file choosers; these work in any UI language), "close" for the                 window's close box. `text` first types the answer of an input dialog (or picks it in its                 combo box); `path` first puts a file or directory path into a file chooser and, unless                 button says otherwise, presses its Open/Save button. Without ref: the open modal dialog                 (or the newest dialog). The result repeats the dialog's title and message. To answer a                 dialog that an action will open, pass dialog=<button> to that action instead.                 %WAITS% Returns the new snapshot.""", """
+                Answer a dialog like a user: press one of its buttons by text or by role (ok, yes, no, \
+                cancel; open/save in file choosers; these work in any UI language), "close" for the \
+                window's close box. `text` first types the answer of an input dialog (or picks it in its \
+                combo box); `path` first puts a file or directory path into a file chooser and, unless \
+                button says otherwise, presses its Open/Save button. Without ref: the open modal dialog \
+                (or the newest dialog). The result repeats the dialog's title and message. To answer a \
+                dialog that an action will open, pass dialog=<button> to that action instead. \
+                %WAITS% Returns the new snapshot.""", """
                 {"type":"object","properties":{
                   "button":{"type":"string","description":"Button text, or ok/yes/no/cancel/open/save, or close"},
                   "text":{"type":"string","description":"Answer for an input dialog"},

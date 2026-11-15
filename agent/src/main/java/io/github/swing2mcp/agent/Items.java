@@ -30,6 +30,128 @@ final class Items {
     private Items() {
     }
 
+    // ---------------------------------------------------------------- selection
+
+    /** "0,2-5,9" for sorted indices; at most max numbers or ranges, then "…". */
+    static String ranges(int[] indices, int max) {
+        int[] sorted = indices.clone();
+        java.util.Arrays.sort(sorted);
+        StringBuilder sb = new StringBuilder();
+        int parts = 0;
+        for (int i = 0; i < sorted.length; i++) {
+            int start = sorted[i];
+            while (i + 1 < sorted.length && sorted[i + 1] == sorted[i] + 1) {
+                i++;
+            }
+            if (parts == max) {
+                sb.append(",…");
+                break;
+            }
+            sb.append(parts > 0 ? "," : "").append(start).append(sorted[i] > start ? "-" + sorted[i] : "");
+            parts++;
+        }
+        return sb.toString();
+    }
+
+    /** The selection of a list, table or tree for results, e.g. "items [0,2-3]", "2 nodes: ...", "nothing". */
+    static String selectionText(Component c) {
+        if (c instanceof JList) {
+            int[] selected = ((JList<?>) c).getSelectedIndices();
+            return selected.length == 0 ? "nothing" : (selected.length == 1 ? "item " : "items ")
+                    + "[" + ranges(selected, 20) + "]";
+        }
+        if (c instanceof JTable) {
+            JTable table = (JTable) c;
+            int[] rows = table.getSelectedRows();
+            if (rows.length == 0) {
+                return "nothing";
+            }
+            String text = (rows.length == 1 ? "row " : "rows ") + "[" + ranges(rows, 20) + "]";
+            if (table.getColumnSelectionAllowed()) {
+                text += " cols [" + ranges(table.getSelectedColumns(), 20) + "]";
+            }
+            return text;
+        }
+        if (c instanceof JTree) {
+            JTree tree = (JTree) c;
+            TreePath[] paths = tree.getSelectionPaths();
+            if (paths == null || paths.length == 0) {
+                return "nothing";
+            }
+            return paths.length + (paths.length == 1 ? " node: " : " nodes: ") + selectedPaths(tree, 10);
+        }
+        return "";
+    }
+
+    /** Selected tree paths in row order as "Root/Child", "Root/Other", at most max, then "(+N more)". */
+    static String selectedPaths(JTree tree, int max) {
+        int[] rows = tree.getSelectionRows();
+        List<TreePath> paths = new ArrayList<TreePath>();
+        if (rows != null) {
+            rows = rows.clone();
+            java.util.Arrays.sort(rows);
+            for (int row : rows) {
+                TreePath path = tree.getPathForRow(row);
+                if (path != null) {
+                    paths.add(path);
+                }
+            }
+        }
+        TreePath[] all = tree.getSelectionPaths();
+        if (all != null) {
+            for (TreePath path : all) {
+                if (!paths.contains(path)) {
+                    paths.add(path); // selected inside a collapsed node
+                }
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < Math.min(max, paths.size()); i++) {
+            sb.append(i > 0 ? ", " : "").append(Text.quote(pathText(tree, paths.get(i))));
+        }
+        if (paths.size() > max) {
+            sb.append(" (+").append(paths.size() - max).append(" more)");
+        }
+        return sb.toString();
+    }
+
+    /** "Root/Child" as select and expand take it (the hidden root left out). */
+    static String pathText(JTree tree, TreePath path) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = tree.isRootVisible() ? 0 : 1; i < path.getPathCount(); i++) {
+            sb.append(sb.length() > 0 ? "/" : "").append(nodeText(tree, path.getPathComponent(i)));
+        }
+        return sb.toString();
+    }
+
+    /** "single", "single range" or "multiple": what a user can select. */
+    static String selectionMode(Component c) {
+        int mode;
+        if (c instanceof JList) {
+            mode = ((JList<?>) c).getSelectionMode();
+        } else if (c instanceof JTable) {
+            mode = ((JTable) c).getSelectionModel().getSelectionMode();
+        } else if (c instanceof JTree) {
+            int treeMode = ((JTree) c).getSelectionModel() == null ? 0 : ((JTree) c).getSelectionModel().getSelectionMode();
+            return treeMode == javax.swing.tree.TreeSelectionModel.SINGLE_TREE_SELECTION ? "single"
+                    : treeMode == javax.swing.tree.TreeSelectionModel.CONTIGUOUS_TREE_SELECTION ? "single range" : "multiple";
+        } else {
+            return "";
+        }
+        return mode == javax.swing.ListSelectionModel.SINGLE_SELECTION ? "single"
+                : mode == javax.swing.ListSelectionModel.SINGLE_INTERVAL_SELECTION ? "single range" : "multiple";
+    }
+
+    /** A note for results when several entries were asked for but the component allows fewer. */
+    static String selectionModeNote(Component c, boolean wantedSeveral) {
+        String mode = selectionMode(c);
+        if (!wantedSeveral || mode.equals("multiple") || mode.length() == 0) {
+            return "";
+        }
+        return "\n" + Actions.describe(c) + " allows only " + (mode.equals("single") ? "one selected entry"
+                : "one continuous range") + " (its selection mode), as for a user.";
+    }
+
     // ---------------------------------------------------------------- text of one entry
 
     static String cellText(JTable table, int row, int col) {
@@ -246,10 +368,7 @@ final class Items {
             sb.append(" sorted by column ").append(table.getRowSorter().getSortKeys().get(0).getColumn())
                     .append(' ').append(table.getRowSorter().getSortKeys().get(0).getSortOrder().toString().toLowerCase(Locale.ROOT));
         }
-        int[] selected = table.getSelectedRows();
-        if (selected.length > 0) {
-            sb.append(" selected=").append(java.util.Arrays.toString(selected).replace(" ", ""));
-        }
+        sb.append(" selection=").append(selectionMode(table)).append(" selected: ").append(selectionText(table));
         sb.append('\n');
         List<Integer> cols = columns(table, columnSpec);
         sb.append("columns: ");
@@ -338,7 +457,8 @@ final class Items {
     private static String list(JList<?> list, int start, int limit, String find) {
         StringBuilder sb = new StringBuilder();
         int size = list.getModel().getSize();
-        sb.append("items=").append(size).append('\n');
+        sb.append("items=").append(size).append(" selection=").append(selectionMode(list)).append(" selected: ")
+                .append(selectionText(list)).append('\n');
         int shown = 0;
         int matched = 0;
         int next = -1;
@@ -399,6 +519,7 @@ final class Items {
      */
     private static String tree(JTree tree, int start, int limit, String find, String path, int depth) {
         StringBuilder sb = new StringBuilder();
+        sb.append("selection=").append(selectionMode(tree)).append(" selected: ").append(selectionText(tree)).append('\n');
         if (Text.isBlank(path)) {
             int rows = tree.getRowCount();
             sb.append("visibleRows=").append(rows).append('\n');

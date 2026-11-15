@@ -25,6 +25,7 @@ public class MainFrame extends JFrame {
     private OrderPanel orderPanel;
     private ReportPanel reportPanel;
     private InvoicePanel invoicePanel;
+    private PlannerPanel plannerPanel;
     private JLabel lblStatus;
 
     public MainFrame(String userName) {
@@ -37,12 +38,14 @@ public class MainFrame extends JFrame {
         orderPanel = new OrderPanel();
         reportPanel = new ReportPanel();
         invoicePanel = new InvoicePanel();
+        plannerPanel = new PlannerPanel(lblStatus);
 
         tabs = new JTabbedPane();
         tabs.addTab("Customers", customerPanel);
         tabs.addTab("Orders", orderPanel);
         tabs.addTab("Reports", reportPanel);
         tabs.addTab("Invoices", invoicePanel);
+        tabs.addTab("Planner", plannerPanel);
 
         getContentPane().setLayout(new BorderLayout());
         getContentPane().add(tabs, BorderLayout.CENTER);
