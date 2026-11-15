@@ -13,8 +13,5 @@ demo-spring/.cursor/
 demo-spring/opencode.json
 demo-spring/.codex/
 
-# git bundle for moving the repo to another machine
-*.bundle
-
 # flatten-maven-plugin output (resolved ${revision})
 .flattened-pom.xml

@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{xml,yml,yaml,json,md}]
+indent_size = 2
+
+[*.md]
+max_line_length = 110
+
+# Windows PowerShell 5.1 reads a script without a byte order mark as ANSI.
+[*.ps1]
+charset = utf-8-bom
