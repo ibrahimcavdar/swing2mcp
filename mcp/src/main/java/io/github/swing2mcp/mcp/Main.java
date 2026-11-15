@@ -22,7 +22,7 @@ import java.util.concurrent.CountDownLatch;
  */
 public final class Main {
 
-    static final String VERSION = "0.1.0";
+    static final String VERSION = version();
 
     private static final String INSTRUCTIONS = """
             swing2mcp lets you see and operate Java Swing desktop applications.
@@ -32,6 +32,23 @@ public final class Main {
             Use screenshot to check visual layout or custom-painted components.""";
 
     private Main() {
+    }
+
+    /** The build's version (filtered resource); "dev" if the resource is missing, e.g. in an unfiltered IDE build. */
+    private static String version() {
+        try (var in = Main.class.getResourceAsStream("/swing2mcp/version.properties")) {
+            if (in != null) {
+                var props = new java.util.Properties();
+                props.load(in);
+                String v = props.getProperty("version", "");
+                if (!v.isBlank() && !v.startsWith("${")) {
+                    return v;
+                }
+            }
+        } catch (java.io.IOException ignored) {
+            // fall through
+        }
+        return "dev";
     }
 
     public static void main(String[] args) throws Exception {
