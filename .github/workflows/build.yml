@@ -20,8 +20,9 @@ jobs:
             21
           cache: maven
       # The end-to-end tests open the demo application, which needs a display.
+      # -Prelease also builds the sources and javadoc jars of a release, so they cannot break unnoticed
       - name: Build and test (server and application on Java 21)
-        run: xvfb-run -a mvn -B -ntp install
+        run: xvfb-run -a mvn -B -ntp -Prelease -Dgpg.skip=true install
       - name: Test with the server and the application on Java 8
         run: xvfb-run -a mvn -B -ntp -pl e2e-tests verify -Dswing2mcp.testJava="$JAVA_HOME_8_X64/bin/java"
       - name: Test with the server and the application on Java 25

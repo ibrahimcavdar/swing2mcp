@@ -13,9 +13,17 @@
   <name>swing2mcp agent</name>
   <description>Java 8, dependency-free Java agent that runs inside the Swing application's JVM.</description>
 
+  <properties>
+    <swing2mcp.publish.skip>false</swing2mcp.publish.skip>
+  </properties>
+
   <build>
     <finalName>swing2mcp-agent</finalName>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>

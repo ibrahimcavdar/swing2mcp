@@ -16,6 +16,10 @@
     injects it into the target JVM.
   </description>
 
+  <properties>
+    <swing2mcp.publish.skip>false</swing2mcp.publish.skip>
+  </properties>
+
   <dependencies>
     <!-- only for build ordering; the jar is embedded as a resource below -->
     <dependency>
@@ -46,6 +50,10 @@
       </resource>
     </resources>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>

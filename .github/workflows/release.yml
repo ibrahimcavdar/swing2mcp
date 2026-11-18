@@ -1,5 +1,12 @@
 # A release is a tag: `git tag v0.1.0 && git push origin v0.1.0`. The version comes from the tag
 # (-Drevision); no commit changes a version. 0.x releases are marked as pre-releases.
+#
+# The build is signed and uploaded to Maven Central, where it is validated and then WAITS: nothing is
+# public until someone presses "Publish" at https://central.sonatype.com/publishing/deployments
+# ("Drop" discards it instead). Once published, a version can never be changed or removed.
+#
+# Repository secrets: CENTRAL_TOKEN_USERNAME, CENTRAL_TOKEN_PASSWORD (a Central Portal user token),
+# GPG_PRIVATE_KEY (ASCII-armored), GPG_PASSPHRASE.
 name: Release
 
 on:
@@ -19,10 +26,20 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: maven
-      - name: Build
+          # writes a settings.xml that reads the token from the environment, and imports the key
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+      - name: Build, test, sign and upload to Maven Central
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          xvfb-run -a mvn -B -ntp -Drevision="$VERSION" install
+          xvfb-run -a mvn -B -ntp -Prelease -Drevision="$VERSION" deploy
           cp mcp/target/swing2mcp.jar "swing2mcp-$VERSION.jar"
       - name: GitHub release
         env:

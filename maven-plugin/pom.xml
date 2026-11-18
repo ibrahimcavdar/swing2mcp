@@ -18,6 +18,7 @@
   </description>
 
   <properties>
+    <swing2mcp.publish.skip>false</swing2mcp.publish.skip>
     <!-- Legacy builds often run Maven itself on Java 8 -->
     <maven.compiler.release>8</maven.compiler.release>
     <maven.version>3.9.9</maven.version>
@@ -69,6 +70,10 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-plugin-plugin</artifactId>
