@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/**", "fix/**"]
   pull_request:
 
 jobs:
@@ -10,13 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # The last version listed is the one Maven runs on; the others are only installed.
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
+          java-version: |
+            8
+            25
+            21
           cache: maven
       # The end-to-end tests open the demo application, which needs a display.
-      - run: xvfb-run -a mvn -B -ntp install
+      - name: Build and test (server and application on Java 21)
+        run: xvfb-run -a mvn -B -ntp install
+      - name: Test with the server and the application on Java 8
+        run: xvfb-run -a mvn -B -ntp -pl e2e-tests verify -Dswing2mcp.testJava="$JAVA_HOME_8_X64/bin/java"
+      - name: Test with the server and the application on Java 25
+        run: xvfb-run -a mvn -B -ntp -pl e2e-tests verify -Dswing2mcp.testJava="$JAVA_HOME_25_X64/bin/java"
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
