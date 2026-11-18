@@ -55,7 +55,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- agent and demo-app must run on Java 8; mcp overrides this to 17 -->
     <maven.compiler.release>8</maven.compiler.release>
-    <mcp-sdk.version>2.1.0</mcp-sdk.version>
+    <mcp-sdk.version>2.2.0</mcp-sdk.version>
     <junit.version>5.8.2</junit.version>
   </properties>
 
