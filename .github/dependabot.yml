@@ -6,7 +6,14 @@ updates:
       interval: weekly
     groups:
       maven-plugins:
-        patterns: ["org.apache.maven.plugins:*", "org.codehaus.mojo:*"]
+        patterns:
+          - "org.apache.maven.plugins:*"
+          - "org.apache.maven.plugin-tools:*"
+          - "org.codehaus.mojo:*"
+    ignore:
+      # The Maven API the plugin compiles against (maven.version) is chosen by hand: it decides which
+      # Maven and Java versions the plugin runs on, and legacy builds run old ones.
+      - dependency-name: "org.apache.maven:*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
