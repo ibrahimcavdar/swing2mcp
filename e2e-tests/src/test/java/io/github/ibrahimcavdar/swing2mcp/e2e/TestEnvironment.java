@@ -49,8 +49,20 @@ final class TestEnvironment {
             return ModuleLayer.boot().findModule("jdk.attach").isPresent();
         }
         Path home = Path.of(java()).toAbsolutePath().getParent().getParent();
-        return Files.exists(home.resolve("jmods/jdk.attach.jmod")) || Files.exists(home.resolve("lib/tools.jar"))
-                || Files.exists(home.resolve("../lib/tools.jar"));
+        if (Files.exists(home.resolve("lib/tools.jar")) || Files.exists(home.resolve("../lib/tools.jar"))) {
+            return true; // a Java 8 JDK
+        }
+        try {
+            Process modules = new ProcessBuilder(java(), "--list-modules").redirectErrorStream(true).start();
+            String listed = new String(modules.getInputStream().readAllBytes());
+            modules.waitFor();
+            return listed.contains("jdk.attach");
+        } catch (IOException e) {
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     /** A shell command for launch_app, to be run in {@link #demoDir()}. */
