@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>swing2mcp: AI tools that can see and use Java Swing applications</title>
+<meta name="description" content="swing2mcp lets AI coding tools see and use legacy Java Swing applications, without touching their code. Java 8 and newer, open source, runs on your machine.">
+<style>
+/* Styled after the API documentation every Java developer has read. */
+:root {
+  --bar: #4d7a97; --bar-ink: #ffffff; --sub: #dee3e9; --ink: #353833; --head: #2c4557; --link: #4a6782;
+  --hover: #bb7a2a; --tab: #f8981d; --row: #eeeeef; --line: #c9d0d6; --code: #f4f5f7; --block: #fafbfc;
+  --sans: "DejaVu Sans", Arial, Helvetica, sans-serif;
+  --mono: "DejaVu Sans Mono", Consolas, "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: #ffffff; color: var(--ink); font: 14px/1.55 var(--sans); }
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--hover); text-decoration: underline; }
+code, pre { font-family: var(--mono); font-size: 13px; }
+pre { background: var(--code); border: 1px solid var(--line); padding: 10px 12px; margin: 8px 0 0; overflow-x: auto;
+  line-height: 1.45; }
+
+.bar { background: var(--bar); color: var(--bar-ink); display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; padding: 0 12px; }
+.bar ul { display: flex; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+.bar li a { display: block; padding: 9px 10px; color: var(--bar-ink); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.02em; }
+.bar li a:hover { color: #ffd9a6; text-decoration: none; }
+.bar li a.here { background: var(--tab); color: #253441; font-weight: bold; }
+.bar .about { font-size: 12px; font-weight: bold; padding: 9px 4px; }
+.subbar { background: var(--sub); padding: 6px 22px; font-size: 11px; text-transform: uppercase; color: #4e4e4e; }
+.subbar a { margin-left: 4px; margin-right: 10px; }
+
+main { padding: 0 22px 30px; max-width: 1180px; }
+.hero { padding: 44px 0 6px; }
+h1 { font-size: clamp(28px, 4.4vw, 44px); line-height: 1.15; color: var(--head); margin: 0 0 16px;
+  font-weight: bold; letter-spacing: -0.01em; max-width: 22ch; }
+.sig { font: 13px var(--mono); margin: 0 0 14px; white-space: pre-wrap; color: var(--link); }
+.lead { font-size: 17px; line-height: 1.6; max-width: 66ch; margin: 0 0 22px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.cta a { padding: 10px 20px; font-weight: bold; font-size: 15px; border: 1px solid var(--bar); }
+.cta a:hover { text-decoration: none; }
+.cta a.go { background: var(--tab); border-color: #d98212; color: #253441; }
+.cta a.alt { background: #fff; color: var(--link); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 22px; list-style: none; margin: 22px 0 0; padding: 0;
+  color: #4e4e4e; }
+.facts li::before { content: "\2713"; color: var(--bar); font-weight: bold; margin-right: 6px; }
+.desc { max-width: 86ch; }
+.desc p { margin: 0 0 10px; }
+dl.meta { margin: 14px 0 0; }
+dl.meta dt { font-weight: bold; font-size: 12px; color: #4e4e4e; margin-top: 8px; }
+dl.meta dd { margin: 2px 0 0 26px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+
+section { margin-top: 26px; }
+h2 { font-size: 18px; color: var(--head); background: var(--sub); border: 1px solid #d0d9e0; margin: 0 0 10px;
+  padding: 7px 8px; font-style: normal; }
+h3 { font-size: 14px; color: var(--head); margin: 14px 0 4px; }
+.intro { margin: 0 0 10px; max-width: 86ch; }
+
+/* summary tables */
+table.summary { width: 100%; border-collapse: collapse; border: 1px solid var(--row); }
+table.summary th { background: var(--sub); text-align: left; padding: 7px 8px; font-size: 13px;
+  border-right: 1px solid #fff; }
+table.summary td { padding: 7px 8px; vertical-align: top; }
+table.summary tr:nth-child(even) td { background: var(--row); }
+table.summary td:first-child { white-space: nowrap; font-family: var(--mono); font-size: 13px; }
+table.summary td:first-child b { color: var(--link); }
+table.features td:first-child { font-family: var(--sans); font-weight: bold; color: var(--head); }
+
+/* detail blocks */
+.detail { border: 1px solid var(--line); background: var(--block); padding: 10px 12px; margin-bottom: 10px; }
+.detail h3 { margin: -10px -12px 8px; padding: 6px 12px; background: var(--sub); border-bottom: 1px solid var(--line); }
+.detail p { margin: 0 0 4px; max-width: 86ch; }
+
+/* demo */
+.demo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.pane { border: 1px solid var(--line); background: var(--block); min-width: 0; }
+.pane > h3 { margin: 0; padding: 6px 10px; background: var(--sub); border-bottom: 1px solid var(--line); }
+.log { padding: 10px; display: flex; flex-direction: column; gap: 8px; height: 372px; overflow-y: auto;
+  scroll-behavior: smooth; }
+.msg { animation: in 0.25s ease-out; }
+@keyframes in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.msg { padding: 7px 10px; border: 1px solid var(--line); background: #fff; max-width: 100%; }
+.msg.dev { border-left: 4px solid var(--tab); }
+.msg.ai { border-left: 4px solid var(--bar); }
+.msg .who { display: block; font-size: 11px; text-transform: uppercase; color: #6b7680; }
+.msg.call { font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--code); }
+.msg.call b { color: var(--link); }
+.msg.call .res { color: #5a6570; display: block; margin-top: 4px; }
+.msg.call mark { background: #ffe9a8; color: inherit; }
+.controls { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.controls button { font: bold 13px var(--sans); padding: 6px 14px; border: 1px solid #3d6582; background: var(--bar);
+  color: #fff; cursor: pointer; }
+.controls button.plain { background: #fff; color: var(--link); border-color: var(--line); }
+.controls button:disabled { opacity: 0.45; cursor: default; }
+.controls button { min-width: 78px; }
+.dots { display: flex; gap: 6px; list-style: none; margin: 0 0 0 6px; padding: 0; }
+.dots button { min-width: 0; width: 26px; height: 26px; padding: 0; background: #fff; color: var(--link);
+  border-color: var(--line); font-weight: normal; }
+.dots button.on { background: var(--tab); border-color: #d98212; color: #253441; font-weight: bold; }
+.swing .button.down { background: #b8cfe5; }
+.swing .caret::after { content: ""; display: inline-block; width: 1px; height: 13px; background: #000;
+  vertical-align: -2px; animation: blink 0.9s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .msg, .swing .caret::after { animation: none; } }
+
+/* the Swing window (Metal look) */
+.swing { margin: 10px; border: 1px solid #7a8a99; background: #eeeeee; color: #1b1b1b;
+  font: 12px/1.4 Dialog, Tahoma, Arial, sans-serif; box-shadow: 2px 2px 0 rgba(0,0,0,0.15); }
+.swing .title { background: linear-gradient(#b8cfe5, #8fa9c4); color: #10202f; padding: 4px 8px; font-weight: bold;
+  display: flex; justify-content: space-between; }
+.swing .menubar { padding: 3px 8px; border-bottom: 1px solid #c4c4c4; }
+.swing .menubar span { margin-right: 14px; }
+.swing .tabsw { display: flex; padding: 6px 8px 0; border-bottom: 1px solid #7a8a99; }
+.swing .tabsw span { padding: 3px 10px; border: 1px solid #7a8a99; border-bottom: none; margin-right: 2px;
+  background: #d6d9df; }
+.swing .tabsw span.sel { background: #b8cfe5; font-weight: bold; }
+.swing fieldset { margin: 10px 8px; border: 1px solid #7a8a99; padding: 8px 10px; }
+.swing .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.swing .row label { width: 70px; }
+.swing .field, .swing .combo { flex: 1; background: #fff; border: 1px solid #7a8a99; padding: 2px 5px; min-height: 21px; }
+.swing .combo { display: flex; justify-content: space-between; }
+.swing .button { background: linear-gradient(#ffffff, #c8d6e5); border: 1px solid #7a8a99; padding: 3px 16px;
+  font-weight: bold; }
+.swing table { border-collapse: collapse; margin: 0 8px 8px; width: calc(100% - 16px); background: #fff; }
+.swing th, .swing td { border: 1px solid #c4c4c4; padding: 2px 6px; text-align: left; }
+.swing th { background: #dcdcdc; font-weight: normal; }
+.swing .status { border-top: 1px solid #c4c4c4; padding: 3px 8px; min-height: 22px; color: #145c2e; }
+.swing .hot { outline: 2px solid var(--tab); outline-offset: 1px; }
+.swing tr.new td { background: #dff0e4; }
+
+/* architecture: one compact row; the labels under the lines change with the demo */
+.arch { display: flex; align-items: center; margin: 14px 0 4px; font-size: 13px; }
+.arch .box { flex: 0 0 auto; border: 1px solid #9aa7b4; background: #fff; padding: 7px 12px; font-weight: bold;
+  color: var(--head); white-space: nowrap; transition: background 0.25s, border-color 0.25s; }
+.arch .jvm { flex: 3 1 0; display: flex; align-items: center; position: relative; border: 1px dashed #7a8a99;
+  padding: 14px 10px 10px; min-width: 0; }
+.arch .jvm .wire { min-width: 84px; }
+.arch .jvm i { position: absolute; top: -9px; left: 8px; background: #fff; padding: 0 5px; font-size: 11px;
+  font-style: normal; color: #5a6570; }
+.wire { flex: 1 1 0; min-width: 34px; position: relative; height: 3px; background: var(--line);
+  transition: background 0.25s; }
+.wire span { position: absolute; top: 7px; left: 0; right: 0; text-align: center; font: bold 11px var(--mono);
+  color: #253441; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arch .box.on { background: #fff3df; border-color: var(--tab); }
+.arch .wire.on { background: var(--tab); }
+.caption { min-height: 22px; margin: 22px 0 12px; color: var(--head); font-weight: bold; }
+table.summary td:last-child { white-space: nowrap; }
+
+footer { margin-top: 30px; }
+footer .legal { padding: 10px 22px 26px; font-size: 12px; color: #4e4e4e; }
+@media (max-width: 820px) {
+  .demo { grid-template-columns: 1fr; }
+  .log { height: 250px; }
+  main { padding: 0 12px 24px; }
+  .subbar { padding: 6px 12px; }
+  table.summary td:last-child { white-space: normal; }
+}
+@media (max-width: 560px) {
+  /* phone: diagram, the current call and the window fit on one screen together */
+  .arch { font-size: 11px; margin-top: 10px; }
+  .arch .box { padding: 5px 6px; }
+  .arch .jvm { padding: 12px 6px 7px; flex: 0 1 auto; }
+  .arch .jvm .wire { min-width: 14px; }
+  .wire { min-width: 10px; }
+  .wire span { display: none; }
+  .caption { margin: 8px 0; min-height: 40px; font-size: 13px; }
+  .controls { flex-wrap: wrap; margin-bottom: 8px; }
+  .demo { gap: 8px; }
+  .pane > h3 { display: none; }
+  .log { height: 132px; padding: 6px; }
+  .log .msg:not(:last-child) { display: none; }
+  .msg.call { font-size: 11px; }
+  .swing { margin: 6px; }
+  .swing .menubar { display: none; }
+  .swing fieldset { margin: 6px; padding: 4px 8px; }
+  .swing table { margin: 0 6px 6px; width: calc(100% - 12px); }
+}
+</style>
+</head>
+<body>
+<header>
+  <nav class="bar" aria-label="Sections">
+    <ul>
+      <li><a class="here" href="#overview">Overview</a></li>
+      <li><a href="#how">How it works</a></li>
+            <li><a href="#quick-start">Quick start</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#tools">Tools</a></li>
+      <li><a href="https://github.com/ibrahimcavdar/swing2mcp">GitHub</a></li>
+    </ul>
+    <div class="about">swing2mcp 0.1.0</div>
+  </nav>
+  <div class="subbar">Summary: <a href="#features">Features</a> | <a href="#tools">Tools</a>
+    &nbsp; Detail: <a href="#how">How it works</a> | <a href="#quick-start">Quick start</a></div>
+</header>
+
+<main>
+  <div id="overview" class="hero">
+    <p class="sig">AI tool  &#8644;  swing2mcp  &#8644;  your Swing application</p>
+    <h1>AI tools that can see and use your Java Swing application</h1>
+    <p class="lead">On the web, an AI tool can open the page and check its own work, with tools such as
+      Playwright. For Swing applications that loop is usually missing: the AI tool writes code that it
+      cannot try. swing2mcp closes the loop, without touching your application's code.</p>
+    <div class="cta">
+      <a class="go" href="#quick-start">Quick start</a>
+      <a class="alt" href="https://github.com/ibrahimcavdar/swing2mcp">View on GitHub</a>
+    </div>
+    <ul class="facts">
+      <li>Java 8 and newer</li>
+      <li>No changes to your code</li>
+      <li>Runs on your machine</li>
+      <li>Open source, Apache-2.0</li>
+    </ul>
+  </div>
+
+  <section id="how">
+    <h2>How It Works</h2>
+    <p class="intro">A small Java agent lives inside your application's JVM, so it reads the screen as text
+      from the component tree instead of from pixels. The AI tool talks to it through a local MCP server
+      (MCP over stdio, then HTTP on 127.0.0.1 with a token). Watch one request travel. This is an illustration of the real tool calls, not a recording.</p>
+    <div class="arch" id="arch">
+      <div class="box" id="n-ai">AI tool</div>
+      <div class="wire" id="w-1"><span id="l-1">&nbsp;</span></div>
+      <div class="box" id="n-mcp">MCP server</div>
+      <div class="wire" id="w-2"><span id="l-2">&nbsp;</span></div>
+      <div class="jvm"><i>your application</i>
+        <div class="box" id="n-agent">agent</div>
+        <div class="wire" id="w-3"><span id="l-3">&nbsp;</span></div>
+        <div class="box" id="n-ui">Swing windows</div>
+      </div>
+    </div>
+    <p class="caption" id="caption">&nbsp;</p>
+    <div class="controls">
+      <button id="play" aria-label="Pause the demo">Pause</button>
+      <button id="again" class="plain">Restart</button>
+      <ol class="dots" id="dots" aria-label="Steps of the demo"></ol>
+    </div>
+    <div class="demo">
+      <div class="pane">
+        <h3>AI tool</h3>
+        <div class="log" id="log" aria-live="polite"></div>
+      </div>
+      <div class="pane">
+        <h3>Your Swing application</h3>
+        <div class="swing" aria-label="Illustration of a Swing application window">
+          <div class="title"><span>ACME Customer Manager 3.2 - admin</span><span>_ &#9633; &times;</span></div>
+          <div class="menubar"><span>File</span><span>Edit</span><span>Help</span></div>
+          <div class="tabsw"><span class="sel">Customers</span><span>Orders</span><span>Reports</span></div>
+          <fieldset>
+            <legend>Customer Details</legend>
+            <div class="row"><label>Full Name</label><div class="field" id="f-name"></div></div>
+            <div class="row"><label>City</label><div class="combo" id="f-city"><span>Ankara</span><span>&#9662;</span></div></div>
+            <div class="row"><label></label><div class="button" id="f-save">Save</div></div>
+          </fieldset>
+          <table>
+            <thead><tr><th>ID</th><th>Full Name</th><th>City</th></tr></thead>
+            <tbody id="f-rows"></tbody>
+          </table>
+          <div class="status" id="f-status"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="about">
+    <h2>Overview</h2>
+    <div class="desc">
+      <p>swing2mcp lets AI coding tools <b>see and use</b> legacy Java Swing applications, without touching
+        their code. The AI tool reads the screen as text, clicks and types like a user, and sees the result
+        of a code change without a restart.</p>
+    </div>
+    <dl class="meta">
+      <dt>Requires:</dt><dd>Java 8 or newer, Maven 3.6.3 or newer</dd>
+      <dt>Works with:</dt><dd>Claude Code, Cursor, Codex, OpenCode and any tool that supports MCP, also with a local model</dd>
+      <dt>License:</dt><dd><a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/LICENSE">Apache License 2.0</a></dd>
+      <dt>Since:</dt><dd>0.1.0 (early release: tool names and options may still change before 1.0)</dd>
+      <dt>See Also:</dt><dd><a href="https://github.com/ibrahimcavdar/swing2mcp#readme">README</a>,
+        <a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/docs/usage.md">Using swing2mcp</a>,
+        <a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/SECURITY.md">Security</a></dd>
+    </dl>
+  </section>
+
+  <section id="quick-start">
+    <h2>Quick Start Detail</h2>
+    <div class="detail">
+      <h3>1. Add the plugin</h3>
+      <p>To your project's <code>pom.xml</code>. This is the only part you need to add.</p>
+<pre>&lt;plugin&gt;
+  &lt;groupId&gt;io.github.ibrahimcavdar&lt;/groupId&gt;
+  &lt;artifactId&gt;swing2mcp-maven-plugin&lt;/artifactId&gt;
+  &lt;version&gt;0.1.0&lt;/version&gt;
+&lt;/plugin&gt;</pre>
+    </div>
+    <div class="detail">
+      <h3>2. Connect your AI tool</h3>
+      <p>Once per machine. The command asks which of your AI tools to connect, lists the changes it is about
+        to make, and waits for your yes. <code>mvn swing2mcp:uninstall</code> removes all of it again.</p>
+<pre>mvn swing2mcp:setup</pre>
+    </div>
+    <div class="detail">
+      <h3>3. Start your application with swing2mcp</h3>
+      <p>Instead of your usual way. The application behaves as always; nothing is written into your jar or
+        your code.</p>
+<pre>mvn swing2mcp:run</pre>
+    </div>
+    <div class="detail">
+      <h3>4. Tell the AI tool what you want it to do</h3>
+      <p>For example: <i>"Log in with admin/admin, add a customer named Ali Veli from İzmir and check that it
+        shows up in the table."</i></p>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>Feature Summary</h2>
+    <table class="summary features">
+      <thead><tr><th>Feature</th><th>Description</th><th>Details</th></tr></thead>
+      <tbody>
+        <tr><td>No code changes</td><td>One plugin entry in the pom; nothing is written into your jar.</td><td><a href="#quick-start">Quick start</a></td></tr>
+        <tr><td>Text, not pixels</td><td>The component tree as text, with the Java field names.</td><td><a href="#tools">snapshot</a></td></tr>
+        <tr><td>Like a real user</td><td>Real key and mouse events; listeners and validation run.</td><td><a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/docs/usage.md#how-actions-behave">How actions behave</a></td></tr>
+        <tr><td>Background</td><td>The window does not have to be in front.</td><td><a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/docs/usage.md#how-actions-behave">How actions behave</a></td></tr>
+        <tr><td>Hot reload</td><td>Code changes without a restart.</td><td><a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/docs/usage.md#seeing-code-changes-without-a-restart-hot-reload">Hot reload</a></td></tr>
+        <tr><td>Attach</td><td>Connects to an application that is already open.</td><td><a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/docs/usage.md#connecting-to-an-application-that-is-already-open">Connecting</a></td></tr>
+        <tr><td>Spring</td><td>Lists the screens and opens one directly.</td><td><a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/docs/usage.md#spring-applications">Spring</a></td></tr>
+        <tr><td>Local</td><td>Sends nothing off your machine; works with a local model.</td><td><a href="https://github.com/ibrahimcavdar/swing2mcp/blob/main/SECURITY.md">Security</a></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="tools">
+    <h2>Tool Summary</h2>
+    <table class="summary">
+      <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><b>list_apps</b> / <b>connect_app</b></td><td>Lists running Java applications / connects to one, without a restart.</td></tr>
+        <tr><td><b>snapshot</b></td><td>Text summary of the windows, with <code>ref</code> IDs.</td></tr>
+        <tr><td><b>screenshot</b></td><td>PNG image of a window or component.</td></tr>
+        <tr><td><b>click</b></td><td>Real mouse click on a button, table cell, list item or tree node; double click, right click, with Ctrl/Shift.</td></tr>
+        <tr><td><b>type_text</b></td><td>Types real keys into a text field, password, spinner or editable combo.</td></tr>
+        <tr><td><b>press_key</b></td><td>Enter, Escape, Tab, arrows, F-keys and shortcuts such as Ctrl+S.</td></tr>
+        <tr><td><b>select_option</b></td><td>Combo, list, tab, table cell, tree node; several rows, items or nodes with Ctrl/Shift.</td></tr>
+        <tr><td><b>drag</b></td><td>Mouse drag (pan a map, move a slider, a split pane divider, a table column) and drag and drop between components.</td></tr>
+        <tr><td><b>read_items</b></td><td>Reads tables, lists, trees and combos page by page, as they are shown.</td></tr>
+        <tr><td><b>expand_node</b></td><td>Expands or collapses a tree node by its path.</td></tr>
+        <tr><td><b>select_menu</b></td><td>Chooses a menu path such as "File &gt; Open", also in context menus.</td></tr>
+        <tr><td><b>handle_dialog</b></td><td>Answers a message box, input dialog or file chooser.</td></tr>
+        <tr><td><b>wait_for</b></td><td>Waits for a text to appear or disappear.</td></tr>
+        <tr><td><b>hot_reload</b></td><td>Applies compiled code changes without a restart; rebuilds the screen if needed.</td></tr>
+        <tr><td><b>spring_beans</b></td><td>Lists the beans in Spring applications (screens are shown separately).</td></tr>
+        <tr><td><b>open_spring_bean</b></td><td>Opens a Spring screen bean directly, without navigating the menu.</td></tr>
+        <tr><td><b>launch_app</b> / <b>stop_app</b></td><td>Starts / closes the application from the AI tool, for projects without Maven.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  <nav class="bar" aria-label="Sections, repeated">
+    <ul>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#how">How it works</a></li>
+            <li><a href="#quick-start">Quick start</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#tools">Tools</a></li>
+      <li><a href="https://github.com/ibrahimcavdar/swing2mcp">GitHub</a></li>
+    </ul>
+    <div class="about">swing2mcp 0.1.0</div>
+  </nav>
+  <p class="legal">Copyright &copy; 2026 <a href="https://github.com/ibrahimcavdar">Halil İbrahim Çavdar</a>.
+    Licensed under the Apache License 2.0.</p>
+</footer>
+
+<script>
+(function () {
+  var rows = [["1", "Ayşe Yılmaz", "Ankara"], ["2", "Mehmet Demir", "İstanbul"], ["3", "Zeynep Kaya", "Bursa"]];
+  var steps = [
+    { log: ["dev", "Add a customer named Ali Veli from İzmir and check that it shows up in the table."],
+      on: ["n-ai"], say: "You ask in plain language." },
+    { log: ["call", "<b>snapshot</b><span class=\"res\">- frame \"ACME Customer Manager 3.2 - admin\" [ref=e10]\n  - textfield \"Full Name\" [ref=e18] value=\"\" field=txtName\n  - combobox \"City\" [ref=e20] value=\"Ankara\" field=cmbCity\n  - button \"Save\" [ref=e23] field=btnSave\n  - table [ref=e26] rows=3 field=tblCustomers</span>"],
+      hops: ["snapshot", "GET /snapshot", "read tree"], say: "The AI tool reads the screen as text." },
+    { log: ["call", "<b>type_text</b>(ref=e18, \"Ali Veli\")<span class=\"res\">Typed into \"Full Name\"</span>"],
+      name: "Ali Veli", hot: "f-name",
+      hops: ["type_text", "POST /type", "key events"], say: "It types like a user: listeners and validation run." },
+    { log: ["call", "<b>select_option</b>(ref=e20, \"İzmir\")<span class=\"res\">Selected \"İzmir\" in \"City\"</span>"],
+      name: "Ali Veli", city: "İzmir", hot: "f-city",
+      hops: ["select_option", "POST /select", "mouse events"], say: "Every action answers with the updated screen." },
+    { log: ["call", "<b>click</b>(ref=e23)<span class=\"res\">Clicked \"Save\"\n  - table [ref=e26] rows=4\n    - <mark>row 3: 4 | Ali Veli | İzmir</mark>\n  - label \"Customer saved\"</span>"],
+      saved: true, hot: "f-save",
+      hops: ["click", "POST /click", "mouse click"], say: "The result shows the new row and the message." },
+    { log: ["ai", "Done. Ali Veli from İzmir is in the table, in the last row."], saved: true,
+      on: ["n-ai"], say: "The AI tool reports back, having checked the result itself." }
+  ];
+  var who = { dev: "Developer", ai: "AI tool" };
+  var at = 0, playing = true, timer = null, typing = null;
+  var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var $ = function (id) { return document.getElementById(id); };
+
+  steps.forEach(function (_, i) {
+    var li = document.createElement("li"), b = document.createElement("button");
+    b.textContent = String(i + 1);
+    b.setAttribute("aria-label", "Show step " + (i + 1));
+    b.addEventListener("click", function () { pause(); show(i, false); });
+    li.appendChild(b); $("dots").appendChild(li);
+  });
+
+  function show(n, animate) {
+    at = n;
+    clearInterval(typing);
+    var log = $("log");
+    while (log.children.length > n + 1) { log.removeChild(log.lastChild); }
+    for (var i = log.children.length; i <= n; i++) {
+      var kind = steps[i].log[0], d = document.createElement("div");
+      d.className = "msg " + kind;
+      if (kind === "call") {
+        d.innerHTML = steps[i].log[1];
+      } else {
+        var w = document.createElement("span"); w.className = "who"; w.textContent = who[kind];
+        d.appendChild(w); d.appendChild(document.createTextNode(steps[i].log[1]));
+      }
+      log.appendChild(d);
+    }
+    log.scrollTop = log.scrollHeight;
+
+    var s = steps[n], name = $("f-name");
+    var text = s.saved ? "" : (s.name || "");
+    name.classList.toggle("caret", s.hot === "f-name");
+    if (animate && !still && s.hot === "f-name") {
+      var k = 0; name.textContent = "";
+      typing = setInterval(function () {
+        name.textContent = text.slice(0, ++k);
+        if (k >= text.length) { clearInterval(typing); }
+      }, 90);
+    } else {
+      name.textContent = text;
+    }
+    $("f-city").firstChild.textContent = s.city || "Ankara";
+    var body = $("f-rows"); body.innerHTML = "";
+    var all = s.saved ? rows.concat([["4", "Ali Veli", "İzmir"]]) : rows;
+    all.forEach(function (r, m) {
+      var tr = document.createElement("tr");
+      if (m === 3) { tr.className = "new"; }
+      r.forEach(function (c) { var td = document.createElement("td"); td.textContent = c; tr.appendChild(td); });
+      body.appendChild(tr);
+    });
+    $("f-status").textContent = s.saved ? "Customer saved" : "";
+    ["f-name", "f-city", "f-save"].forEach(function (id) { $(id).classList.toggle("hot", s.hot === id); });
+    $("f-save").classList.toggle("down", s.hot === "f-save");
+    var lit = s.hops ? ["n-ai", "w-1", "n-mcp", "w-2", "n-agent", "w-3", "n-ui"] : (s.on || []);
+    ["n-ai", "w-1", "n-mcp", "w-2", "n-agent", "w-3", "n-ui"].forEach(function (id) {
+      $(id).classList.toggle("on", lit.indexOf(id) >= 0);
+    });
+    [1, 2, 3].forEach(function (k) { $("l-" + k).textContent = s.hops ? s.hops[k - 1] : "\u00a0"; });
+    $("caption").textContent = s.say;
+    Array.prototype.forEach.call($("dots").querySelectorAll("button"), function (b, i) {
+      b.classList.toggle("on", i === n);
+    });
+  }
+
+  function tick() {
+    var last = at === steps.length - 1;
+    timer = setTimeout(function () { show(last ? 0 : at + 1, true); tick(); }, last ? 5000 : 2400);
+  }
+  function play() { playing = true; $("play").textContent = "Pause"; $("play").setAttribute("aria-label", "Pause the demo"); clearTimeout(timer); tick(); }
+  function pause() { playing = false; $("play").textContent = "Play"; $("play").setAttribute("aria-label", "Play the demo"); clearTimeout(timer); }
+
+  $("play").addEventListener("click", function () { if (playing) { pause(); } else { play(); } });
+  $("again").addEventListener("click", function () { show(0, true); play(); });
+
+  show(0, false);
+  if (still) {
+    pause();
+  } else if ("IntersectionObserver" in window) {
+    // start when the demo scrolls into view, stop the clock while it is out of view
+    var started = false;
+    new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting) { if (playing) { clearTimeout(timer); tick(); } started = true; }
+      else { clearTimeout(timer); }
+    }, { threshold: 0.4 }).observe($("how"));
+  } else {
+    tick();
+  }
+})();
+</script>
+</body>
+</html>
