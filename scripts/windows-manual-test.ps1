@@ -82,7 +82,7 @@ function Initialize-Demo([string] $mvn) {
     }
     Push-Location $demo
     try {
-        & $mvn -q -B swing2mcp:setup | Out-Host
+        & $mvn -q -B swing2mcp:setup "-Dswing2mcp.clients=claude,cursor,codex,opencode" "-Dswing2mcp.scope=project" | Out-Host
         if ($LASTEXITCODE -ne 0) { Fail 'mvn swing2mcp:setup failed (output above).' }
     } finally {
         Pop-Location
