@@ -176,13 +176,64 @@ the tool result says so, with the stack trace, so the AI tool notices that its c
 
 ## How does it work?
 
-```
-AI tool ──MCP──▶ swing2mcp MCP server ──localhost──▶ agent (inside the application)
+```mermaid
+flowchart LR
+    ai["<b>AI tool</b><br/>Claude Code, Cursor, Codex, OpenCode<br/>or any MCP client, also with a local model"]
+    server["<b>swing2mcp MCP server</b><br/>Java 17+"]
+    subgraph jvm["JVM of your application (Java 8+)"]
+        agent["<b>swing2mcp agent</b><br/>Java agent, no dependencies"]
+        ui["<b>Swing windows</b><br/>your code, unchanged"]
+        agent <-->|"Swing / AWT API<br/>real key and mouse events"| ui
+    end
+    ai <-->|"MCP<br/>stdio"| server
+    server <-->|"HTTP on 127.0.0.1<br/>random port + token"| agent
 ```
 
-The agent is added to the application's JVM as a `-javaagent`. It listens only on `127.0.0.1`, with a random
-port and token. It writes the connection details to `~/.swing2mcp/jvms/<pid>.properties`
-(readable only by its owner) and deletes the file when the application exits.
+Everything runs on your machine. The AI tool starts the MCP server as a local process and talks to it
+over stdio. The agent lives inside the application's JVM, so it reads the screen as text from the
+component tree instead of from pixels, and it works while the window is in the background.
+
+The agent gets into the application in one of three ways, always on an explicit request:
+
+| How | Who starts it |
+|---|---|
+| `mvn swing2mcp:run` | You start the application from Maven, with the agent |
+| `launch_app` | The AI tool starts the application with a command you would use yourself |
+| `connect_app` | The AI tool attaches to an application that is already running |
+
+The agent listens only on `127.0.0.1`, with a random port and token. It writes the connection details to
+`~/.swing2mcp/jvms/<pid>.properties` (readable only by its owner) and deletes the file when the
+application exits.
+
+What happens when you ask for something:
+
+```mermaid
+sequenceDiagram
+    actor Dev as Developer
+    participant AI as AI tool
+    participant MCP as swing2mcp MCP server
+    participant Agent as Agent (in the application's JVM)
+    participant App as Swing application
+
+    Dev->>AI: "Add a customer named Ali Veli"
+    AI->>MCP: snapshot
+    MCP->>Agent: GET /snapshot
+    Agent->>App: walk the component tree
+    Agent-->>MCP: text tree with refs
+    MCP-->>AI: textfield "Full Name" [ref=e18] ...
+    AI->>MCP: type_text(ref=e18, "Ali Veli")
+    MCP->>Agent: POST /type
+    Agent->>App: focus, then real key events
+    Note over App: listeners and validation run,<br/>as for a person typing
+    Agent-->>MCP: result + updated snapshot
+    MCP-->>AI: Typed into "Full Name" ...
+    AI->>MCP: click(ref=e24)
+    MCP->>Agent: POST /click
+    Agent->>App: real mouse press and release
+    Agent-->>MCP: result + updated snapshot
+    MCP-->>AI: row 3: Ali Veli ... | label "Customer saved"
+    AI-->>Dev: "Done, the customer is in the table"
+```
 
 Why it is built this way: [docs/design.md](docs/design.md).
 
