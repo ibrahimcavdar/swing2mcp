@@ -45,6 +45,7 @@
     <module>demo-spring</module>
     <module>mcp</module>
     <module>maven-plugin</module>
+    <module>e2e-tests</module>
   </modules>
 
   <properties>
@@ -55,6 +56,7 @@
     <!-- agent and demo-app must run on Java 8; mcp overrides this to 17 -->
     <maven.compiler.release>8</maven.compiler.release>
     <mcp-sdk.version>2.1.0</mcp-sdk.version>
+    <junit.version>5.8.2</junit.version>
   </properties>
 
   <build>
@@ -85,6 +87,11 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
           <version>3.8.1</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.2.5</version>
         </plugin>
       </plugins>
     </pluginManagement>

@@ -21,6 +21,7 @@ To try the result, go to `demo-app` or `demo-spring` and run `mvn swing2mcp:setu
 | `mcp` | 17 | MCP server; embeds the agent jar |
 | `maven-plugin` | 8 | `swing2mcp:setup`, `swing2mcp:run` |
 | `demo-app`, `demo-spring` | 8 | Test applications; they must not know about swing2mcp |
+| `e2e-tests` | 17 | End-to-end tests; not installed or published |
 
 Why it is built this way: [docs/design.md](docs/design.md).
 
@@ -35,9 +36,16 @@ Why it is built this way: [docs/design.md](docs/design.md).
 
 ## Testing
 
-There are no automated tests yet. Changes are checked by hand against the demo applications:
+`mvn install` (or `mvn verify`) runs the end-to-end tests in `e2e-tests`. They start the built MCP server
+jar and use `demo-app` through it, exactly as an AI tool does: the application window opens for a few
+seconds. On a machine without a display they are skipped; on Linux, `xvfb-run mvn install` gives them
+one. `-DskipTests` leaves them out.
+
+They cover the basics so far (start, attach, login, a form, a dialog, a screenshot). Everything else is
+still checked by hand against the demo applications:
 
 - [docs/manual-testing.md](docs/manual-testing.md) is the checklist.
+- When you fix a bug or add a tool, add a test for it if the demo application can show it.
 - [scripts/mcp-steps.py](scripts/mcp-steps.py) drives the MCP server without an AI tool: it runs tool
   calls given as JSON lines (description at the top of the file).
 - Check with the application on Java 8 as well as on a current JDK (`-Dswing2mcp.javaHome=...`).

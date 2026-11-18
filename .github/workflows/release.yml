@@ -22,7 +22,7 @@ jobs:
       - name: Build
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          mvn -B -ntp -Drevision="$VERSION" install
+          xvfb-run -a mvn -B -ntp -Drevision="$VERSION" install
           cp mcp/target/swing2mcp.jar "swing2mcp-$VERSION.jar"
       - name: GitHub release
         env:

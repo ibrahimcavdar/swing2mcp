@@ -10,6 +10,8 @@ between releases.
 
 - License: Apache License 2.0.
 - `SECURITY.md` with the security model and how to report a vulnerability.
+- End-to-end tests that use the demo application through the MCP server; they run in `mvn install` and
+  in CI.
 
 ### Changed
 
