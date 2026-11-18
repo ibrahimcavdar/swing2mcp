@@ -12,6 +12,7 @@ between releases.
 - `SECURITY.md` with the security model and how to report a vulnerability.
 - End-to-end tests that use the demo application through the MCP server; they run in `mvn install` and
   in CI.
+- `mvn swing2mcp:uninstall` removes everything `setup` added.
 
 ### Fixed
 
@@ -21,6 +22,11 @@ between releases.
 
 ### Changed
 
+- The MCP server runs on Java 8 and newer (it needed Java 17) and has no dependencies; tested on Java 8,
+  21 and 25.
+- `mvn swing2mcp:setup` asks which AI tools to connect, lists its changes before making them, and writes
+  to the user's settings instead of the project. `-Dswing2mcp.clients` and `-Dswing2mcp.scope=project`
+  give the answers without questions.
 - The Maven group ID is `io.github.ibrahimcavdar` (was `io.github.swing2mcp`); the Java packages moved to
   `io.github.ibrahimcavdar.swing2mcp`.
 
