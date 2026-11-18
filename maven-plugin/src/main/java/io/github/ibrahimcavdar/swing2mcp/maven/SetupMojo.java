@@ -153,6 +153,7 @@ public class SetupMojo extends AbstractMojo {
         }
         getLog().info("swing2mcp: any other MCP client can start the server with: "
                 + quoteIfNeeded(java.getAbsolutePath()) + " -jar " + quoteIfNeeded(server.getAbsolutePath()));
+        getLog().info("swing2mcp: to undo all of this: mvn swing2mcp:uninstall");
     }
 
     // ---------------------------------------------------------------- choosing
@@ -271,7 +272,7 @@ public class SetupMojo extends AbstractMojo {
         return new File(userHome, ".config/opencode").isDirectory() || onPath("opencode") != null;
     }
 
-    private static File onPath(String command) {
+    static File onPath(String command) {
         String path = System.getenv("PATH");
         if (path == null) {
             return null;
@@ -395,7 +396,7 @@ public class SetupMojo extends AbstractMojo {
     }
 
     /** Runs a command and returns its exit code and output. Batch files on Windows go through cmd.exe. */
-    private static String[] run(File executable, String... arguments) throws IOException {
+    static String[] run(File executable, String... arguments) throws IOException {
         List<String> command = new ArrayList<String>();
         String name = executable.getName().toLowerCase(Locale.ROOT);
         if (Jvm.isWindows() && (name.endsWith(".cmd") || name.endsWith(".bat"))) {
@@ -432,7 +433,7 @@ public class SetupMojo extends AbstractMojo {
         return new String[]{String.valueOf(process.exitValue()), new String(output.toByteArray(), StandardCharsets.UTF_8)};
     }
 
-    private static String quoteIfNeeded(String value) {
+    static String quoteIfNeeded(String value) {
         return value.indexOf(' ') >= 0 ? "\"" + value + "\"" : value;
     }
 
@@ -526,7 +527,7 @@ public class SetupMojo extends AbstractMojo {
         return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
-    private static JsonObject read(File file) throws IOException {
+    static JsonObject read(File file) throws IOException {
         if (!file.isFile()) {
             return new JsonObject();
         }
