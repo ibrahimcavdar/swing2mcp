@@ -120,6 +120,40 @@ class DemoAppTest {
 
     @Test
     @Order(7)
+    void reportsAWaitThatTimedOutAsAnError() throws Exception {
+        Result timedOut = mcp.call("wait_for", "text", "no such text on any screen", "timeoutMs", 300);
+        assertTrue(timedOut.error(), "a wait that timed out must be an error:\n" + timedOut.text());
+        assertContains(timedOut, "Timed out after 300 ms");
+        // The snapshot at that moment still comes with it.
+        assertContains(timedOut, "frame \"ACME Customer Manager 3.2 - admin\"");
+
+        Result met = ok(mcp.call("wait_for", "text", "Customer Details", "timeoutMs", 300));
+        assertContains(met, "Condition met.");
+    }
+
+    @Test
+    @Order(8)
+    void showsThatASpinnerHasNotTakenOverTypedTextYet() throws Exception {
+        Result main = ok(mcp.call("snapshot"));
+        Result orders = ok(mcp.call("select_option", "ref", main.ref("field=tabs"), "value", "Orders"));
+        String spinner = orders.ref("field=spnQuantity");
+
+        // A spinner commits typed text on Enter or when the focus leaves it, as for a person typing.
+        Result typed = ok(mcp.call("type_text", "ref", spinner, "text", "5"));
+        assertContains(typed, "The spinner still has the value \"1\"");
+        assertContains(typed, "value=\"1\" typed=\"5\" (not committed)");
+
+        Result committed = ok(mcp.call("press_key", "key", "Enter"));
+        assertContains(committed, "spinner \"Quantity\" [ref=" + spinner + "] value=\"5\"");
+        assertFalse(committed.text().contains("not committed"), committed.text());
+
+        Result submitted = ok(mcp.call("type_text", "ref", spinner, "text", "7", "submit", true));
+        assertContains(submitted, "value=\"7\"");
+        assertFalse(submitted.text().contains("not committed"), submitted.text());
+    }
+
+    @Test
+    @Order(9)
     void takesAScreenshot() throws Exception {
         Result shot = ok(mcp.call("screenshot"));
         assertEquals(1, shot.images().size());
@@ -129,7 +163,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(8)
+    @Order(10)
     void stopsTheApplication() throws Exception {
         Result stopped = ok(mcp.call("stop_app", "pid", pid));
         assertContains(stopped, "Stopped pid " + pid);

@@ -13,6 +13,12 @@ between releases.
 - End-to-end tests that use the demo application through the MCP server; they run in `mvn install` and
   in CI.
 
+### Fixed
+
+- `wait_for` reports a timeout as an error; it used to return a normal result that only said "Timed out".
+- A spinner shows text that was typed but not taken over yet (`typed="5" (not committed)`), and `type_text`
+  says how to commit it. Before, the result showed the old value without a hint.
+
 ### Changed
 
 - MCP Java SDK 2.2.0, gson 2.15.0 and newer build plugins.

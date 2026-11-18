@@ -991,6 +991,11 @@ final class Actions {
                     if (!(input instanceof JTextComponent) || submit || typed[0] < text.length()) {
                         return null;
                     }
+                    if (c instanceof JSpinner && SnapshotBuilder.uncommittedText((JSpinner) c) != null) {
+                        return "\nThe spinner still has the value " + Text.quote(String.valueOf(((JSpinner) c).getValue()))
+                                + ": it takes the typed text over when Enter is pressed (submit=true, or press_key Enter)"
+                                + " or when a click moves the focus elsewhere.";
+                    }
                     String now = ((JTextComponent) input).getText();
                     if (input instanceof JPasswordField) {
                         return append || now.length() == text.length() ? null

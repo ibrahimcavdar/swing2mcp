@@ -346,7 +346,7 @@ final class Tools {
         tool("wait_for", """
                 Wait until `text` appears anywhere in the snapshot (or disappears with gone=true). \
                 Without text, waits for the first window to appear, which is useful right after \
-                launch_app. Returns the snapshot.""", """
+                launch_app. Returns the snapshot; a timeout is an error, with the snapshot at that moment.""", """
                 {"type":"object","properties":{
                   "text":{"type":"string"},
                   "gone":{"type":"boolean"},

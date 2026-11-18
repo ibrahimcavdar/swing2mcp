@@ -173,7 +173,8 @@ final class AgentServer {
                 } else if ("/reload".equals(path)) {
                     text(exchange, 200, afterAction(hotReload.reload(params)));
                 } else if ("/wait".equals(path)) {
-                    text(exchange, 200, waitFor(params) + ErrorMonitor.get().takeReport());
+                    Waited waited = waitFor(params);
+                    text(exchange, waited.timedOut ? 400 : 200, waited.text + ErrorMonitor.get().takeReport());
                 } else {
                     text(exchange, 404, "unknown endpoint " + path);
                 }
@@ -338,8 +339,22 @@ final class AgentServer {
         }
     }
 
-    /** Waits until text appears (or disappears with gone=true); without text, until any window is visible. */
-    private String waitFor(Map<String, String> params) throws Exception {
+    /** What wait_for answers: the snapshot, and whether the condition was met in time. */
+    private static final class Waited {
+        final String text;
+        final boolean timedOut;
+
+        Waited(String text, boolean timedOut) {
+            this.text = text;
+            this.timedOut = timedOut;
+        }
+    }
+
+    /**
+     * Waits until text appears (or disappears with gone=true); without text, until any window is visible.
+     * A timeout is reported as an error, with the last snapshot, so a caller cannot take it for success.
+     */
+    private Waited waitFor(Map<String, String> params) throws Exception {
         String text = params.get("text");
         boolean gone = "true".equalsIgnoreCase(params.get("gone"));
         long timeout = params.get("timeoutMs") == null ? 10000 : Long.parseLong(params.get("timeoutMs"));
@@ -355,15 +370,15 @@ final class AgentServer {
                     ready = last.contains(text) != gone;
                 }
                 if (ready) {
-                    return "Condition met.\n\n" + last;
+                    return new Waited("Condition met.\n\n" + last, false);
                 }
             } catch (Edt.BusyException busy) {
                 // keep waiting; the application is still working
             }
             if (System.currentTimeMillis() >= deadline) {
-                return "Timed out after " + timeout + " ms waiting for "
+                return new Waited("Timed out after " + timeout + " ms waiting for "
                         + (Text.isBlank(text) ? "a window" : Text.quote(text) + (gone ? " to disappear" : ""))
-                        + ".\n\n" + (last == null ? "(UI thread busy, no snapshot)" : last);
+                        + ".\n\n" + (last == null ? "(UI thread busy, no snapshot)" : last), true);
             }
             Thread.sleep(250);
         }

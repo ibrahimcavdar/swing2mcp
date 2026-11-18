@@ -98,6 +98,26 @@ final class SnapshotBuilder {
     }
 
     /** The modal dialog that currently blocks input, if any (the most recently opened one). */
+    /**
+     * The text in a spinner's editor that the spinner has not taken over yet, or null. A spinner commits
+     * typed text when Enter is pressed or the focus leaves the editor; until then its value is the old one.
+     */
+    static String uncommittedText(JSpinner spinner) {
+        if (!(spinner.getEditor() instanceof JSpinner.DefaultEditor)) {
+            return null;
+        }
+        JFormattedTextField field = ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField();
+        String shown = field.getText();
+        String committed;
+        try {
+            JFormattedTextField.AbstractFormatter formatter = field.getFormatter();
+            committed = formatter == null ? String.valueOf(field.getValue()) : formatter.valueToString(field.getValue());
+        } catch (java.text.ParseException e) {
+            return null;
+        }
+        return shown == null || shown.equals(committed) ? null : shown;
+    }
+
     static Dialog activeModalDialog() {
         Window active = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
         if (active instanceof Dialog && ((Dialog) active).isModal() && active.isShowing()) {
@@ -370,7 +390,9 @@ final class SnapshotBuilder {
             return sb.append(']').append(fieldSuffix(c)).toString();
         }
         if (c instanceof JSpinner) {
+            String typed = uncommittedText((JSpinner) c);
             return "spinner" + named(c) + ref(c) + " value=" + Text.quote(String.valueOf(((JSpinner) c).getValue()))
+                    + (typed == null ? "" : " typed=" + Text.quote(typed, 100) + " (not committed)")
                     + states(c) + fieldSuffix(c);
         }
         if (c instanceof JSlider) {
