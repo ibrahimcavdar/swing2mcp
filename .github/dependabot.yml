@@ -14,6 +14,9 @@ updates:
       # The Maven API the plugin compiles against (maven.version) is chosen by hand: it decides which
       # Maven and Java versions the plugin runs on, and legacy builds run old ones.
       - dependency-name: "org.apache.maven:*"
+      # demo-spring is a legacy application on purpose: Spring 5.3 is the last line that runs on Java 8.
+      - dependency-name: "org.springframework:*"
+      - dependency-name: "javax.annotation:javax.annotation-api"
   - package-ecosystem: github-actions
     directory: /
     schedule:
