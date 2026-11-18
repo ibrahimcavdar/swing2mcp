@@ -54,8 +54,7 @@ final class McpSession implements AutoCloseable {
     private int nextId;
 
     McpSession(Path serverJar, Path errorLog) throws IOException {
-        String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
-        process = new ProcessBuilder(java, "-jar", serverJar.toString())
+        process = new ProcessBuilder(TestEnvironment.java(), "-jar", serverJar.toString())
                 .redirectError(errorLog.toFile())
                 .start();
         toServer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
@@ -121,7 +120,28 @@ final class McpSession implements AutoCloseable {
     }
 
     private JsonObject request(String method, JsonObject params, int timeoutSeconds) throws IOException {
+        JsonObject reply = reply(method, params, timeoutSeconds);
+        if (reply.has("error")) {
+            throw new IOException(method + " failed: " + reply.get("error"));
+        }
+        return reply.getAsJsonObject("result");
+    }
+
+    /** Sends a request and returns the whole answer, whether it is a result or an error. */
+    JsonObject reply(String method, JsonObject params, int timeoutSeconds) throws IOException {
         int id = send(method, params, true);
+        return await(method, id, timeoutSeconds);
+    }
+
+    /** Sends a line as it is and returns the answer that has no id, which is how a server answers nonsense. */
+    JsonObject replyToLine(String line) throws IOException {
+        toServer.write(line);
+        toServer.write("\n");
+        toServer.flush();
+        return await("a raw line", null, 30);
+    }
+
+    private JsonObject await(String method, Integer id, int timeoutSeconds) throws IOException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
         while (true) {
             String line;
@@ -138,11 +158,9 @@ final class McpSession implements AutoCloseable {
                 throw new IOException("The MCP server stopped before answering " + method);
             }
             JsonObject reply = gson.fromJson(line, JsonObject.class);
-            if (reply.has("id") && !reply.get("id").isJsonNull() && reply.get("id").getAsInt() == id) {
-                if (reply.has("error")) {
-                    throw new IOException(method + " failed: " + reply.get("error"));
-                }
-                return reply.getAsJsonObject("result");
+            boolean noId = !reply.has("id") || reply.get("id").isJsonNull();
+            if (id == null ? noId : !noId && reply.get("id").getAsInt() == id) {
+                return reply;
             }
         }
     }

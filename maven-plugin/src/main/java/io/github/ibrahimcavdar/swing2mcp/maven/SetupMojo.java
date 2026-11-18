@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  *   mvn swing2mcp:setup                                  asks which tools, shows the changes, then makes them
  *   mvn swing2mcp:setup -Dswing2mcp.clients=claude       no questions (also for -B and scripts)
  *   mvn swing2mcp:setup -Dswing2mcp.scope=project        settings files in this project instead of the user's
- *   mvn swing2mcp:setup -Dswing2mcp.mcpJavaHome=/path/to/jdk17
+ *   mvn swing2mcp:setup -Dswing2mcp.mcpJavaHome=/path/to/jdk     run the MCP server with another Java
  * </pre>
  *
  * Nothing is written without being named first: either the developer picks the tools at the prompt and
@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 @Mojo(name = "setup", aggregator = true, threadSafe = true)
 public class SetupMojo extends AbstractMojo {
 
-    private static final int MCP_SERVER_MIN_JAVA = 17;
+    private static final int MCP_SERVER_MIN_JAVA = 8;
     private static final List<String> CLIENTS = Arrays.asList("claude", "cursor", "codex", "opencode");
     private static final List<String> CLIENT_NAMES = Arrays.asList("Claude Code", "Cursor", "Codex", "OpenCode");
 
@@ -86,7 +86,7 @@ public class SetupMojo extends AbstractMojo {
     @Parameter(property = "swing2mcp.scope", defaultValue = "user")
     private String scope;
 
-    /** Java 17+ home that runs the MCP server. Default: Maven's JVM, then JAVA_HOME, if 17+. */
+    /** Java home (8 or newer) that runs the MCP server. Default: the Java that runs Maven. */
     @Parameter(property = "swing2mcp.mcpJavaHome")
     private File mcpJavaHome;
 
@@ -364,7 +364,7 @@ public class SetupMojo extends AbstractMojo {
         }
         throw new MojoExecutionException("The MCP server needs Java " + MCP_SERVER_MIN_JAVA + "+, but Maven runs on "
                 + "Java " + System.getProperty("java.specification.version") + ". Point to a newer JDK with "
-                + "-Dswing2mcp.mcpJavaHome=/path/to/jdk17 (the application itself can still run on Java 8).");
+                + "-Dswing2mcp.mcpJavaHome=/path/to/jdk.");
     }
 
     /** Copies the server jar to ~/.swing2mcp/bin, versioned so a running server never blocks an update. */

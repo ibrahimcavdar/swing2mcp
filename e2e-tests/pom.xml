@@ -20,6 +20,8 @@
     <maven.compiler.release>17</maven.compiler.release>
     <maven.install.skip>true</maven.install.skip>
     <maven.deploy.skip>true</maven.deploy.skip>
+    <!-- Another java executable for the server and the application, e.g. a Java 8; default: the tests' own -->
+    <swing2mcp.testJava/>
   </properties>
 
   <dependencies>
@@ -82,6 +84,7 @@
             <swing2mcp.serverJar>${project.basedir}/../mcp/target/swing2mcp.jar</swing2mcp.serverJar>
             <swing2mcp.demoDir>${project.basedir}/../demo-app</swing2mcp.demoDir>
             <swing2mcp.workDir>${project.build.directory}</swing2mcp.workDir>
+            <swing2mcp.testJava>${swing2mcp.testJava}</swing2mcp.testJava>
           </systemPropertyVariables>
         </configuration>
       </plugin>

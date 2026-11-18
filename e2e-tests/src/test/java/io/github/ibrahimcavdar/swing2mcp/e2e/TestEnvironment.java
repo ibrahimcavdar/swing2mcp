@@ -34,9 +34,23 @@ final class TestEnvironment {
         return Path.of(required("swing2mcp.demoDir")).toAbsolutePath().normalize();
     }
 
-    /** The java executable that runs the tests; it also runs the server and the application. */
+    /**
+     * The java executable that runs the server and the application: the one that runs the tests, or
+     * another one given with -Dswing2mcp.testJava (e.g. a Java 8, which cannot run the tests themselves).
+     */
     static String java() {
-        return Path.of(System.getProperty("java.home"), "bin", "java").toString();
+        String other = System.getProperty("swing2mcp.testJava", "").trim();
+        return other.isEmpty() ? Path.of(System.getProperty("java.home"), "bin", "java").toString() : other;
+    }
+
+    /** Whether that Java can attach to other JVMs: a JDK has the Attach API, a JRE does not. */
+    static boolean canAttach() {
+        if (System.getProperty("swing2mcp.testJava", "").trim().isEmpty()) {
+            return ModuleLayer.boot().findModule("jdk.attach").isPresent();
+        }
+        Path home = Path.of(java()).toAbsolutePath().getParent().getParent();
+        return Files.exists(home.resolve("jmods/jdk.attach.jmod")) || Files.exists(home.resolve("lib/tools.jar"))
+                || Files.exists(home.resolve("../lib/tools.jar"));
     }
 
     /** A shell command for launch_app, to be run in {@link #demoDir()}. */

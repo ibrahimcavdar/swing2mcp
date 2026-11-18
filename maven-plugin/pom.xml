@@ -75,7 +75,7 @@
         <version>${plugin-tools.version}</version>
         <configuration>
           <goalPrefix>swing2mcp</goalPrefix>
-          <!-- The bundled MCP server jar is Java 17, but the plugin's own code runs on Java 8 -->
+          <!-- Legacy builds run Maven itself on Java 8 -->
           <requiredJavaVersion>8</requiredJavaVersion>
           <requiredMavenVersion>3.6.3</requiredMavenVersion>
         </configuration>

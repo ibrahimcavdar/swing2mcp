@@ -20,7 +20,7 @@ class AttachTest {
     @BeforeEach
     void startApplicationWithoutAgent() throws Exception {
         TestEnvironment.requireDisplay();
-        assumeTrue(ModuleLayer.boot().findModule("jdk.attach").isPresent(), "attach needs a JDK, not a JRE");
+        assumeTrue(TestEnvironment.canAttach(), "attach needs a JDK, not a JRE");
         application = new ProcessBuilder(TestEnvironment.java(), "-jar", "target/demo-app.jar")
                 .directory(TestEnvironment.demoDir().toFile())
                 .redirectErrorStream(true)
