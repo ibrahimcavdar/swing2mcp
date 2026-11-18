@@ -1,7 +1,10 @@
 # Contributing
 
-Issues and pull requests are welcome. For anything larger than a small fix, please open an issue first
-so the approach can be agreed on before you spend time on it.
+Bug reports and ideas are the most useful contributions right now: please open an issue.
+
+Pull requests with small fixes are welcome too. For anything larger, open an issue first so the approach
+can be agreed on before you spend time on it; this is a one-person project and not every change can be
+taken on. Contributions are accepted under the project's license, Apache-2.0.
 
 ## Build
 
