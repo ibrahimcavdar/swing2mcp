@@ -1,7 +1,7 @@
 # Manual test checklist
 
-There are no automated tests yet; this is the checklist to go through after a change. It uses the two
-demo applications. The commands are written for Windows `cmd.exe` (the main target platform); on macOS
+The automated tests (`e2e-tests`) cover only the basics; this is the checklist to go through after a
+change for everything else. It uses the two demo applications. The commands are written for Windows `cmd.exe` (the main target platform); on macOS
 and Linux only the paths differ.
 
 ## Requirements
@@ -19,7 +19,7 @@ and Linux only the paths differ.
 mvn install
 ```
 
-- [ ] `BUILD SUCCESS` for five modules.
+- [ ] `BUILD SUCCESS` for all modules, including the end-to-end tests.
 
 ## 2. Connect the AI tool
 

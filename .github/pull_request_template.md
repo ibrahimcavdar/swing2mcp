@@ -8,6 +8,7 @@
 
 ## Checklist
 
-- [ ] `mvn install` passes
+- [ ] `mvn install` passes, including the end-to-end tests
+- [ ] A bug fix or new tool has a test in `e2e-tests`, where the demo application can show it
 - [ ] `agent` and `maven-plugin` still compile for Java 8, and `agent` has no new dependency
 - [ ] Notable changes are listed under "Unreleased" in `CHANGELOG.md`

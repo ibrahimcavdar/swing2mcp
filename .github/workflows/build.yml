@@ -15,4 +15,12 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: maven
-      - run: mvn -B -ntp install
+      # The end-to-end tests open the demo application, which needs a display.
+      - run: xvfb-run -a mvn -B -ntp install
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-output
+          path: |
+            e2e-tests/target/surefire-reports/
+            e2e-tests/target/*.log

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.github.swing2mcp</groupId>
+    <artifactId>swing2mcp-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>swing2mcp-e2e-tests</artifactId>
+  <name>swing2mcp end-to-end tests</name>
+  <description>
+    Starts the built MCP server jar and uses the demo application through it, the way an AI tool does.
+    Not installed or deployed.
+  </description>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <maven.install.skip>true</maven.install.skip>
+    <maven.deploy.skip>true</maven.deploy.skip>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.11.0</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Only for build ordering: the tests start these jars as separate processes -->
+    <dependency>
+      <groupId>io.github.swing2mcp</groupId>
+      <artifactId>swing2mcp</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.github.swing2mcp</groupId>
+      <artifactId>swing2mcp-demo-app</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <skipIfEmpty>true</skipIfEmpty>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <executions>
+          <!-- The tests need the jars of the other modules, so they run after "package":
+               mvn verify and mvn install run them, mvn test does not. -->
+          <execution>
+            <id>default-test</id>
+            <phase>integration-test</phase>
+          </execution>
+        </executions>
+        <configuration>
+          <trimStackTrace>false</trimStackTrace>
+          <systemPropertyVariables>
+            <swing2mcp.serverJar>${project.basedir}/../mcp/target/swing2mcp.jar</swing2mcp.serverJar>
+            <swing2mcp.demoDir>${project.basedir}/../demo-app</swing2mcp.demoDir>
+            <swing2mcp.workDir>${project.build.directory}</swing2mcp.workDir>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
