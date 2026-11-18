@@ -13,6 +13,7 @@ between releases.
 - End-to-end tests that use the demo application through the MCP server; they run in `mvn install` and
   in CI.
 - `mvn swing2mcp:uninstall` removes everything `setup` added.
+- Releases are published to Maven Central (`io.github.ibrahimcavdar`), with sources and javadoc jars.
 
 ### Fixed
 

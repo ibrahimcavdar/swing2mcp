@@ -56,8 +56,11 @@ still checked by hand against the demo applications:
 ## Versions and releases
 
 The poms always say `${revision}`, which is `999-SNAPSHOT`; no commit changes a version. A release is a
-tag `vX.Y.Z` pushed to GitHub: the [release workflow](.github/workflows/release.yml) builds it with
-`-Drevision=X.Y.Z` and publishes a GitHub release. Notable changes go into [CHANGELOG.md](CHANGELOG.md)
+tag `vX.Y.Z` pushed to GitHub: the [release workflow](.github/workflows/release.yml) builds and tests it
+with `-Drevision=X.Y.Z`, signs it, uploads it to Maven Central and creates a GitHub release. The upload
+waits in the Central Portal until the maintainer publishes it there; a published version can never be
+changed or removed. `mvn -Prelease -Dgpg.skip=true -DskipUpload=true clean deploy` builds the same
+artifacts locally without uploading anything. Notable changes go into [CHANGELOG.md](CHANGELOG.md)
 under "Unreleased".
 
 ## Good to know
