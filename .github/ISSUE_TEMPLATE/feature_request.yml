@@ -1,0 +1,20 @@
+name: Feature request
+description: Something swing2mcp cannot do yet
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation in your application or workflow, not the solution yet.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Java version, look and feel or UI framework, Spring, build system, AI tool, if they matter here.

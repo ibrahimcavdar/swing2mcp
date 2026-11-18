@@ -1,0 +1,56 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected and what happened instead. Include the full tool result or error message.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: swing2mcp version
+      description: The release, or the commit if you built it from source.
+    validations:
+      required: true
+  - type: input
+    id: app-java
+    attributes:
+      label: Java of the application
+      description: "`java -version` of the JVM that runs the Swing application."
+    validations:
+      required: true
+  - type: input
+    id: server-java
+    attributes:
+      label: Java of the MCP server
+      description: "`java -version` of the JVM that runs swing2mcp."
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Including the display scale if the problem is about screenshots or the mouse.
+  - type: input
+    id: client
+    attributes:
+      label: AI tool
+      description: Claude Code, Cursor, Codex, OpenCode or another MCP client.
+  - type: dropdown
+    id: start
+    attributes:
+      label: How was the application started?
+      options:
+        - mvn swing2mcp:run
+        - launch_app
+        - connect_app (attach to a running application)
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: >-
+        For example the look and feel or UI framework of the application, whether it uses Spring, and the
+        latest log file under `~/.swing2mcp/logs` for applications started with `launch_app`.
+        Please remove anything confidential from snapshots and logs.
