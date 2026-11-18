@@ -24,7 +24,7 @@ It works with Claude Code, Cursor, OpenCode, Codex and any tool that supports MC
 <build>
   <plugins>
     <plugin>
-      <groupId>io.github.swing2mcp</groupId>
+      <groupId>io.github.ibrahimcavdar</groupId>
       <artifactId>swing2mcp-maven-plugin</artifactId>
       <version>0.1.0</version>
     </plugin>

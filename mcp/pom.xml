@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>io.github.swing2mcp</groupId>
+    <groupId>io.github.ibrahimcavdar</groupId>
     <artifactId>swing2mcp-parent</artifactId>
     <version>${revision}</version>
   </parent>
@@ -30,7 +30,7 @@
     </dependency>
     <!-- only for build ordering; the jar is embedded as a resource below -->
     <dependency>
-      <groupId>io.github.swing2mcp</groupId>
+      <groupId>io.github.ibrahimcavdar</groupId>
       <artifactId>swing2mcp-agent</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
@@ -70,7 +70,7 @@
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>io.github.swing2mcp</groupId>
+                  <groupId>io.github.ibrahimcavdar</groupId>
                   <artifactId>swing2mcp-agent</artifactId>
                   <version>${project.version}</version>
                   <destFileName>swing2mcp-agent.jar</destFileName>
@@ -95,7 +95,7 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>io.github.swing2mcp.mcp.Main</mainClass>
+                  <mainClass>io.github.ibrahimcavdar.swing2mcp.mcp.Main</mainClass>
                 </transformer>
               </transformers>
               <filters>

@@ -21,6 +21,9 @@ between releases.
 
 ### Changed
 
+- The Maven group ID is `io.github.ibrahimcavdar` (was `io.github.swing2mcp`); the Java packages moved to
+  `io.github.ibrahimcavdar.swing2mcp`.
+
 - MCP Java SDK 2.2.0, gson 2.15.0 and newer build plugins.
 - Documentation reorganized: design notes in `docs/design.md`, a manual test checklist in
   `docs/manual-testing.md`, a contributor guide in `CONTRIBUTING.md`.

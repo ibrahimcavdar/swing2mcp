@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>io.github.swing2mcp</groupId>
+    <groupId>io.github.ibrahimcavdar</groupId>
     <artifactId>swing2mcp-parent</artifactId>
     <version>${revision}</version>
   </parent>
@@ -50,12 +50,12 @@
     </dependency>
     <!-- Never loaded by the plugin; resolved so that their jars can be handed to other JVMs -->
     <dependency>
-      <groupId>io.github.swing2mcp</groupId>
+      <groupId>io.github.ibrahimcavdar</groupId>
       <artifactId>swing2mcp-agent</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>io.github.swing2mcp</groupId>
+      <groupId>io.github.ibrahimcavdar</groupId>
       <artifactId>swing2mcp</artifactId>
       <version>${project.version}</version>
       <exclusions>

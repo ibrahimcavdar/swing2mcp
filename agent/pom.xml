@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>io.github.swing2mcp</groupId>
+    <groupId>io.github.ibrahimcavdar</groupId>
     <artifactId>swing2mcp-parent</artifactId>
     <version>${revision}</version>
   </parent>
@@ -22,8 +22,8 @@
         <configuration>
           <archive>
             <manifestEntries>
-              <Premain-Class>io.github.swing2mcp.agent.AgentMain</Premain-Class>
-              <Agent-Class>io.github.swing2mcp.agent.AgentMain</Agent-Class>
+              <Premain-Class>io.github.ibrahimcavdar.swing2mcp.agent.AgentMain</Premain-Class>
+              <Agent-Class>io.github.ibrahimcavdar.swing2mcp.agent.AgentMain</Agent-Class>
               <!-- needed for hot reload (Instrumentation.redefineClasses) -->
               <Can-Redefine-Classes>true</Can-Redefine-Classes>
               <Can-Retransform-Classes>true</Can-Retransform-Classes>
