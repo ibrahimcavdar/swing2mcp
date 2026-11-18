@@ -27,6 +27,8 @@ you connect.
 
 Please do not open a public issue. Use "Report a vulnerability" on the
 [Security tab](https://github.com/ibrahimcavdar/swing2mcp/security) of the repository, which sends a
-private report. You can expect an answer within a week.
+private report.
 
-Only the latest release gets fixes.
+This is a one-person project. Reports are answered as soon as possible, but there is no guaranteed
+response time, and only the latest release gets fixes. The software comes without warranty, as the
+[license](LICENSE) states.
