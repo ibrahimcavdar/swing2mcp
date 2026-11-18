@@ -12,13 +12,13 @@ Why swing2mcp is built the way it is. For what it does and how to use it, see th
 ## Architecture
 
 ```
-AI tool ──MCP (stdio)──▶ MCP server (Java 17+) ──localhost HTTP + token──▶ agent (inside the application's JVM, Java 8+)
+AI tool ──MCP (stdio)──▶ MCP server (Java 8+) ──localhost HTTP + token──▶ agent (inside the application's JVM, Java 8+)
 ```
 
 | Module | Java | Role |
 |---|---|---|
 | `agent` | 8, no dependencies | Runs inside the application: snapshot, screenshot, actions, Spring lookup, hot reload |
-| `mcp` | 17 | MCP server (official MCP Java SDK). Carries the agent jar; starts applications or attaches to them |
+| `mcp` | 8, no dependencies | MCP server. Carries the agent jar; starts applications or attaches to them |
 | `maven-plugin` | 8 | The only part a user adds to a project: `swing2mcp:setup` and `swing2mcp:run` |
 | `demo-app`, `demo-spring` | 8 | Legacy-style test applications, without and with Spring. They know nothing about swing2mcp |
 
@@ -47,8 +47,11 @@ Attach API. It has nothing to do with an AI agent.
   internals, so it needs no `--add-opens` on newer JDKs. Two narrow exceptions: Spring lookup opens
   `java.lang` to the agent through `Instrumentation` on Java 9+, and on Java 8 a slider thumb's size is
   read from the look and feel.
-- The MCP protocol lives in a separate process written with the official MCP Java SDK (Java 17). It is in
-  Java because the Attach API is only reachable from Java, and the audience already has a JDK.
+- The MCP protocol lives in a separate process. It is in Java because the Attach API is only reachable
+  from Java, and the audience already has a JDK.
+- The MCP server is written without the MCP SDK, in Java 8 and with no dependencies: the SDK needs
+  Java 17, and many machines of the audience only have Java 8. The server needs a small part of the
+  protocol (stdio, tools), and the tool definitions are a resource file (`tools.json`).
 - The MCP server jar carries the agent jar and injects it, so there is one thing to install.
 - Looking at the screen from outside (screenshot, OCR, real mouse) was rejected: general computer-use
   tools already do that, and it adds nothing Java-specific.
@@ -57,14 +60,14 @@ Attach API. It has nothing to do with an AI agent.
 
 - Build integration starts with Maven; the build-specific part is thin, and the engine (agent and MCP
   server) does not depend on a build system. Gradle or Ant support can be added the same way.
-- `swing2mcp:setup` installs the MCP server under `~/.swing2mcp/bin` and writes the project settings of
-  Claude Code, Cursor, OpenCode and Codex, keeping existing settings. The files hold machine-specific
-  paths, so each developer runs it once and does not commit them.
+- `swing2mcp:setup` installs the MCP server under `~/.swing2mcp/bin` and adds it to the user settings
+  of the AI tools the developer picks (Claude Code, Cursor, Codex, OpenCode), keeping existing settings.
+  It lists its changes and asks first, and writes nothing into the project; `swing2mcp:uninstall`
+  removes everything again.
 - `swing2mcp:run` compiles, starts the application in its own process with the project's classpath and the
   agent, and waits; when Maven stops, the application stops. Long classpaths go into a manifest jar
   because of the Windows command-line limit.
-- The plugin is compiled for Java 8, because legacy builds often run Maven itself on Java 8. The MCP
-  server still needs Java 17 (`-Dswing2mcp.mcpJavaHome`).
+- The plugin is compiled for Java 8, because legacy builds often run Maven itself on Java 8.
 - `launch_app` adds the agent through `JAVA_TOOL_OPTIONS`, so one approach covers `java -jar`, start
   scripts and IDE commands.
 

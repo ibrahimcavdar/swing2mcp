@@ -8,7 +8,7 @@ and Linux only the paths differ.
 
 | What | Why |
 |---|---|
-| JDK 17+ (a JDK, not a JRE) | Builds the project and runs the MCP server; attaching to an open application needs a JDK |
+| JDK 17+ (a JDK, not a JRE) | Builds the project. The MCP server itself runs on Java 8 or newer; attaching to an open application needs a JDK |
 | Maven 3.6.3+ | `mvn install`, `mvn swing2mcp:setup`, `mvn swing2mcp:run` |
 | JDK 8 (optional) | Runs the demo applications on Java 8, close to the real target |
 | An AI tool, or Python 3.7+ | Claude Code, Cursor, Codex or OpenCode; or [scripts/mcp-steps.py](../scripts/mcp-steps.py) to call the tools by hand |
@@ -28,14 +28,16 @@ cd demo-app
 mvn swing2mcp:setup
 ```
 
-- [ ] The output names the installed MCP server jar under `.swing2mcp\bin` in the user folder.
-- [ ] `.mcp.json`, `.cursor\mcp.json`, `opencode.json` and `.codex\config.toml` exist in `demo-app`, with
-  correct absolute paths.
-- [ ] With Maven on Java 8, the error message suggests `-Dswing2mcp.mcpJavaHome=...`, and it works with
-  that parameter.
+- [ ] It lists the AI tools, marks the ones found on this machine, and asks which to connect.
+- [ ] It lists the changes it is about to make and waits for a yes; with "n" nothing changes.
+- [ ] After a yes: the MCP server jar is under `.swing2mcp\bin` in the user folder, and each chosen tool
+  has an entry named `swing` in its user settings, with correct absolute paths. Nothing was written into
+  `demo-app`.
+- [ ] It also works with Maven running on Java 8.
+- [ ] `mvn swing2mcp:uninstall` lists what it will remove, asks, and afterwards the entries and the
+  `.swing2mcp` folder are gone while other entries in those settings are kept. Run `setup` again to go on.
 
-Open the AI tool in the `demo-app` folder. Claude Code asks to approve the project's server on first
-start; Codex reads project settings only in trusted projects.
+Open the AI tool in the `demo-app` folder.
 
 ## 3. Run and use the application
 

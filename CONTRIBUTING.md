@@ -18,8 +18,8 @@ To try the result, go to `demo-app` or `demo-spring` and run `mvn swing2mcp:setu
 | Module | Java | Role |
 |---|---|---|
 | `agent` | 8 | Runs inside the application's JVM |
-| `mcp` | 17 | MCP server; embeds the agent jar |
-| `maven-plugin` | 8 | `swing2mcp:setup`, `swing2mcp:run` |
+| `mcp` | 8 | MCP server, no dependencies; embeds the agent jar |
+| `maven-plugin` | 8 | `swing2mcp:setup`, `swing2mcp:run`, `swing2mcp:uninstall` |
 | `demo-app`, `demo-spring` | 8 | Test applications; they must not know about swing2mcp |
 | `e2e-tests` | 17 | End-to-end tests; not installed or published |
 
@@ -27,7 +27,8 @@ Why it is built this way: [docs/design.md](docs/design.md).
 
 ## Rules
 
-- `agent` and `maven-plugin` must stay Java 8 compatible (`maven.compiler.release=8`).
+- `agent`, `mcp` and `maven-plugin` must stay Java 8 compatible (`maven.compiler.release=8`). Building
+  the project itself needs JDK 17 or newer, because of the tests.
 - `agent` has no dependencies and never references Spring or any other library at compile time. It uses
   only public Swing/AWT API; libraries of the application are reached by reflection.
 - In `mcp`, nothing may write to stdout except the MCP protocol.
@@ -63,7 +64,7 @@ under "Unreleased".
 
 - **The agent jar is locked while an application runs.** On Windows, `mvn install` may fail to replace
   the agent jar in `~/.m2` while an application started with it is open. Close the application first.
-- **Attaching to Java 8 looks like a failure.** The attach client of Java 17 reports success on a Java 8
+- **Attaching to Java 8 looks like a failure.** The attach client of a newer Java reports success on a Java 8
   target as `AgentLoadException: 0` (`Failed to load agent library: 0` on Windows). `Attacher` counts
   both as success.
 - **Compile with the same JDK as the running application.** javac of JDK 8 and of JDK 9+ write the flags
@@ -76,8 +77,5 @@ under "Unreleased".
   front, so never trust Java's focus state alone before pressing real keys or buttons.
 - **Testing an inactive window.** A window minimized from another process stays the active window for
   Java. Let the application open and close a dialog afterwards; then its frame is inactive.
-- **Plugin and Java 17.** Because the plugin bundles the Java 17 MCP server jar, the Maven plugin tooling
-  would mark the plugin as requiring Java 17; `requiredJavaVersion=8` in `maven-plugin/pom.xml` prevents
-  that.
 - **Windows PowerShell 5.1** reads a `.ps1` file without a byte order mark as ANSI. Keep
   `scripts/windows-manual-test.ps1` saved as UTF-8 with BOM.
