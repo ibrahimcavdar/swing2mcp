@@ -6,6 +6,11 @@ between releases.
 
 ## Unreleased
 
+### Added
+
+- License: Apache License 2.0.
+- `SECURITY.md` with the security model and how to report a vulnerability.
+
 ### Changed
 
 - Documentation reorganized: design notes in `docs/design.md`, a manual test checklist in
