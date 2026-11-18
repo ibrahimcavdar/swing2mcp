@@ -9,6 +9,35 @@
   <version>${revision}</version>
   <packaging>pom</packaging>
   <name>swing2mcp</name>
+  <description>Lets AI coding tools see and use Java Swing applications over MCP, without changing their code.</description>
+  <url>https://github.com/ibrahimcavdar/swing2mcp</url>
+  <inceptionYear>2026</inceptionYear>
+
+  <licenses>
+    <license>
+      <name>Apache-2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Halil İbrahim Çavdar</name>
+      <url>https://github.com/ibrahimcavdar</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/ibrahimcavdar/swing2mcp.git</connection>
+    <developerConnection>scm:git:git@github.com:ibrahimcavdar/swing2mcp.git</developerConnection>
+    <url>https://github.com/ibrahimcavdar/swing2mcp</url>
+  </scm>
+
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/ibrahimcavdar/swing2mcp/issues</url>
+  </issueManagement>
 
   <modules>
     <module>agent</module>

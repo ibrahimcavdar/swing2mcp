@@ -191,4 +191,10 @@ Why it is built this way: [docs/design.md](docs/design.md).
 `mvn install` with JDK 17+ builds everything. To try it on the demo application, run
 `mvn swing2mcp:setup` and `mvn swing2mcp:run` in the `demo-app` folder (login `admin` / `admin`).
 The rules of the code base, testing and releases are in [CONTRIBUTING.md](CONTRIBUTING.md); changes
-between versions are in [CHANGELOG.md](CHANGELOG.md).
+between versions are in [CHANGELOG.md](CHANGELOG.md). Security model and how to report a vulnerability:
+[SECURITY.md](SECURITY.md).
+
+## License
+
+Created and maintained by [Halil İbrahim Çavdar](https://github.com/ibrahimcavdar).
+Licensed under the [Apache License 2.0](LICENSE).
