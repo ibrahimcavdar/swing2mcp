@@ -6,38 +6,9 @@ between releases.
 
 ## Unreleased
 
-### Added
+## 0.1.0 - 2026-11-21
 
-- License: Apache License 2.0.
-- `SECURITY.md` with the security model and how to report a vulnerability.
-- End-to-end tests that use the demo application through the MCP server; they run in `mvn install` and
-  in CI.
-- `mvn swing2mcp:uninstall` removes everything `setup` added.
-- Releases are published to Maven Central (`io.github.ibrahimcavdar`), with sources and javadoc jars.
-
-### Fixed
-
-- `wait_for` reports a timeout as an error; it used to return a normal result that only said "Timed out".
-- A spinner shows text that was typed but not taken over yet (`typed="5" (not committed)`), and `type_text`
-  says how to commit it. Before, the result showed the old value without a hint.
-
-### Changed
-
-- The MCP server runs on Java 8 and newer (it needed Java 17) and has no dependencies; tested on Java 8,
-  21 and 25.
-- `mvn swing2mcp:setup` asks which AI tools to connect, lists its changes before making them, and writes
-  to the user's settings instead of the project. `-Dswing2mcp.clients` and `-Dswing2mcp.scope=project`
-  give the answers without questions.
-- The Maven group ID is `io.github.ibrahimcavdar` (was `io.github.swing2mcp`); the Java packages moved to
-  `io.github.ibrahimcavdar.swing2mcp`.
-
-- MCP Java SDK 2.2.0, gson 2.15.0 and newer build plugins.
-- Documentation reorganized: design notes in `docs/design.md`, a manual test checklist in
-  `docs/manual-testing.md`, a contributor guide in `CONTRIBUTING.md`.
-
-## 0.1.0 - 2026-11-15
-
-First alpha. Built from source by its users; not on Maven Central.
+First public release, on Maven Central (`io.github.ibrahimcavdar`).
 
 ### Added
 
@@ -55,7 +26,15 @@ First alpha. Built from source by its users; not on Maven Central.
   changes with an explanation. Works across the modules of a multi-module project.
 - **Spring:** the agent finds the Spring context without touching the application; `spring_beans` and
   `open_spring_bean`.
-- **Maven plugin:** `swing2mcp:setup` installs the MCP server and writes the settings of Claude Code,
-  Cursor, OpenCode and Codex; `swing2mcp:run` starts the project's application with the agent.
+- **Maven plugin:** `swing2mcp:setup` asks which AI tools to connect (Claude Code, Cursor, Codex,
+  OpenCode), lists its changes before making them, and writes to the user's settings, not into the
+  project; `swing2mcp:uninstall` removes everything again; `swing2mcp:run` starts the project's
+  application with the agent.
+- The agent, the MCP server and the Maven plugin run on Java 8 and newer; the MCP server has no
+  dependencies.
 - Two demo applications, without and with Spring.
-- Tested on Windows 11 and macOS, with applications on Java 8 and Java 21.
+- End-to-end tests that use the demo application through the MCP server; they run in `mvn install` and
+  in CI.
+- `SECURITY.md` with the security model and how to report a vulnerability.
+- License: Apache License 2.0.
+- Tested on Windows 11 and Linux, with Java 8, 21 and 25.
