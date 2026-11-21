@@ -14,8 +14,9 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
+          # 8 is pinned: the 8u514 download fails setup-java's checksum check. Unpin when that is fixed.
           java-version: |
-            8
+            8.0.504
             25
             21
           cache: maven
