@@ -25,17 +25,19 @@ pre { background: var(--code); border: 1px solid var(--line); padding: 10px 12px
   line-height: 1.45; }
 
 .bar { background: var(--bar); color: var(--bar-ink); display: flex; flex-wrap: wrap; align-items: center;
-  justify-content: space-between; padding: 0 12px; }
+  justify-content: space-between;
+  padding: 0 max(12px, calc((100% - 1180px) / 2 - 10px)); }
 .bar ul { display: flex; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
 .bar li a { display: block; padding: 9px 10px; color: var(--bar-ink); font-size: 12px; text-transform: uppercase;
   letter-spacing: 0.02em; }
 .bar li a:hover { color: #ffd9a6; text-decoration: none; }
 .bar li a.here { background: var(--tab); color: #253441; font-weight: bold; }
 .bar .about { font-size: 12px; font-weight: bold; padding: 9px 4px; }
-.subbar { background: var(--sub); padding: 6px 22px; font-size: 11px; text-transform: uppercase; color: #4e4e4e; }
+.subbar { background: var(--sub); padding: 6px max(22px, calc((100% - 1180px) / 2)); font-size: 11px; text-transform: uppercase; color: #4e4e4e; }
 .subbar a { margin-left: 4px; margin-right: 10px; }
 
-main { padding: 0 22px 30px; max-width: 1180px; }
+/* on wide screens the content is a centred column; the bars stay full width */
+main { padding: 0 max(22px, calc((100% - 1180px) / 2)) 30px; }
 .hero { padding: 44px 0 6px; }
 h1 { font-size: clamp(28px, 4.4vw, 44px); line-height: 1.15; color: var(--head); margin: 0 0 16px;
   font-weight: bold; letter-spacing: -0.01em; max-width: 22ch; }
@@ -154,7 +156,7 @@ table.features td:first-child { font-family: var(--sans); font-weight: bold; col
 table.summary td:last-child { white-space: nowrap; }
 
 footer { margin-top: 30px; }
-footer .legal { padding: 10px 22px 26px; font-size: 12px; color: #4e4e4e; }
+footer .legal { padding: 10px max(22px, calc((100% - 1180px) / 2)) 26px; font-size: 12px; color: #4e4e4e; }
 @media (max-width: 820px) {
   .demo { grid-template-columns: 1fr; }
   .log { height: 250px; }
