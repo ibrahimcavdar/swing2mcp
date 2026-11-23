@@ -29,6 +29,9 @@
     "inputSchema": {
       "type": "object",
       "properties": {}
+    },
+    "annotations": {
+      "readOnlyHint": true
     }
   },
   {
@@ -58,6 +61,9 @@
           "description": "Process id from list_apps. Default: the connected application"
         }
       }
+    },
+    "annotations": {
+      "destructiveHint": true
     }
   },
   {
@@ -79,6 +85,9 @@
           "description": "Also list items of closed menus"
         }
       }
+    },
+    "annotations": {
+      "readOnlyHint": true
     }
   },
   {
@@ -92,6 +101,9 @@
           "description": "Window or component ref"
         }
       }
+    },
+    "annotations": {
+      "readOnlyHint": true
     }
   },
   {
@@ -528,6 +540,9 @@
       "required": [
         "ref"
       ]
+    },
+    "annotations": {
+      "readOnlyHint": true
     }
   },
   {
@@ -576,6 +591,9 @@
           "description": "Default 10000"
         }
       }
+    },
+    "annotations": {
+      "readOnlyHint": true
     }
   },
   {
@@ -618,6 +636,9 @@
           "description": "Only beans whose name or class contains this text"
         }
       }
+    },
+    "annotations": {
+      "readOnlyHint": true
     }
   },
   {

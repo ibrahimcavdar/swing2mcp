@@ -53,6 +53,18 @@ class DemoAppTest {
         assertEquals(new TreeSet<>(expected), new TreeSet<>(mcp.toolNames()));
     }
 
+    /**
+     * A client may run a read-only tool without asking, in parallel and twice. Only tools that change
+     * nothing in the application may carry the hint; a tool that clicks or types never does.
+     */
+    @Test
+    @Order(1)
+    void marksOnlyTheReadingToolsAsReadOnly() throws Exception {
+        List<String> reading = List.of("list_apps", "snapshot", "screenshot", "read_items", "wait_for", "spring_beans");
+        assertEquals(new TreeSet<>(reading), new TreeSet<>(mcp.toolsWithHint("readOnlyHint")));
+        assertEquals(List.of("stop_app"), mcp.toolsWithHint("destructiveHint"));
+    }
+
     @Test
     @Order(2)
     void launchesTheApplicationAndShowsTheLoginDialog() throws Exception {

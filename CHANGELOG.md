@@ -6,6 +6,12 @@ between releases.
 
 ## Unreleased
 
+### Added
+
+- Tool annotations: the tools that only read (`snapshot`, `screenshot`, `read_items`, `list_apps`,
+  `spring_beans`, `wait_for`) are marked read-only and `stop_app` is marked destructive, for clients that
+  use these hints to decide when to ask.
+
 ### Changed
 
 - `stop_app` only stops applications that have the swing2mcp agent. Any other process id is refused, so a

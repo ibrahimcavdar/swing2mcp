@@ -92,6 +92,19 @@ final class McpSession implements AutoCloseable {
         return names;
     }
 
+    /** Names of the tools whose annotations set the given hint to true. */
+    List<String> toolsWithHint(String hint) throws IOException {
+        List<String> names = new ArrayList<>();
+        for (JsonElement element : request("tools/list", new JsonObject(), 30).getAsJsonArray("tools")) {
+            JsonObject tool = element.getAsJsonObject();
+            JsonObject annotations = tool.getAsJsonObject("annotations");
+            if (annotations != null && annotations.has(hint) && annotations.get(hint).getAsBoolean()) {
+                names.add(tool.get("name").getAsString());
+            }
+        }
+        return names;
+    }
+
     /** Calls a tool; {@code args} are name/value pairs. */
     Result call(String tool, Object... args) throws IOException {
         JsonObject arguments = new JsonObject();
