@@ -1,5 +1,7 @@
 # swing2mcp
 
+[![ibrahimcavdar/swing2mcp MCP server](https://glama.ai/mcp/servers/ibrahimcavdar/swing2mcp/badges/score.svg)](https://glama.ai/mcp/servers/ibrahimcavdar/swing2mcp)
+
 swing2mcp lets AI coding tools **see and use** legacy Java Swing applications, without touching their
 code.
 
