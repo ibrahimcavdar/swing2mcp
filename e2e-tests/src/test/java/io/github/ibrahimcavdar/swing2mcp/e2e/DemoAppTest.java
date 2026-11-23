@@ -164,6 +164,16 @@ class DemoAppTest {
 
     @Test
     @Order(10)
+    void refusesToStopAProcessWithoutTheAgent() throws Exception {
+        long own = ProcessHandle.current().pid(); // this test JVM: alive, but not a swing2mcp application
+        Result refused = mcp.call("stop_app", "pid", own);
+        assertTrue(refused.error(), refused.text());
+        assertContains(refused, "Not stopped: pid " + own);
+        assertTrue(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false), "the application was stopped");
+    }
+
+    @Test
+    @Order(11)
     void stopsTheApplication() throws Exception {
         Result stopped = ok(mcp.call("stop_app", "pid", pid));
         assertContains(stopped, "Stopped pid " + pid);

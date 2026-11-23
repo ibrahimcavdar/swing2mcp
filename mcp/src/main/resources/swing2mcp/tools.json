@@ -38,7 +38,8 @@
       "type": "object",
       "properties": {
         "pid": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Process id from list_apps"
         }
       },
       "required": [
@@ -48,12 +49,13 @@
   },
   {
     "name": "stop_app",
-    "description": "Terminate an application (default: the connected one).",
+    "description": "Kill an application: ends its process and child processes at once, without asking it to close, so unsaved work is lost and no \"save changes?\" dialog appears. To exit normally, use the application's own exit menu or close button instead. Only applications with the swing2mcp agent can be stopped (see list_apps). Default: the connected application.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "pid": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Process id from list_apps. Default: the connected application"
         }
       }
     }

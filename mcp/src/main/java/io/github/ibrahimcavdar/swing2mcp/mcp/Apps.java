@@ -253,7 +253,16 @@ final class Apps {
         return "Launched pid " + app.pid + " (Java " + app.java + "), agent connected.\nLog: " + log;
     }
 
+    /**
+     * Ends an application that has the agent. Any other pid is refused: a wrong number from the
+     * AI tool must not end an unrelated program.
+     */
     String stop(long pid) throws IOException {
+        if (find(pid) == null) {
+            throw new IOException("Not stopped: pid " + pid + " is not an application with the swing2mcp agent. "
+                    + "stop_app only stops the applications that list_apps shows with the agent; "
+                    + "to stop another Java application, connect to it with connect_app first.");
+        }
         Processes.destroyTree(pid);
         synchronized (this) {
             if (current != null && current.pid == pid) {

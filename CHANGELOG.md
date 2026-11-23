@@ -6,6 +6,11 @@ between releases.
 
 ## Unreleased
 
+### Changed
+
+- `stop_app` only stops applications that have the swing2mcp agent. Any other process id is refused, so a
+  wrong number cannot end an unrelated program. Its description now says that unsaved work is lost.
+
 ## 0.1.0 - 2026-11-21
 
 First public release, on Maven Central (`io.github.ibrahimcavdar`).
