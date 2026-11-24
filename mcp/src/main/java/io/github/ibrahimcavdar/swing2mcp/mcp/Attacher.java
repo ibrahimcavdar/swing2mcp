@@ -1,13 +1,20 @@
 package io.github.ibrahimcavdar.swing2mcp.mcp;
 
+import io.github.ibrahimcavdar.swing2mcp.client.Apps;
+import io.github.ibrahimcavdar.swing2mcp.client.Processes;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Attach API access. The API is part of a JDK, not of the Java platform: a module (jdk.attach) since
@@ -36,7 +43,57 @@ final class Attacher {
     private static final String VIRTUAL_MACHINE = "com.sun.tools.attach.VirtualMachine";
     private static ClassLoader toolsJar;
 
+    private static final String NEEDS_JDK = "Attaching needs the MCP server to run on a JDK, not a JRE. "
+            + "Alternatively start the application with mvn swing2mcp:run.";
+
     private Attacher() {
+    }
+
+    /** Connects to a running Java application, loading the agent into it first if needed. */
+    static String connectOrAttach(Apps apps, long pid) throws IOException, InterruptedException {
+        if (apps.find(pid) != null) {
+            apps.connect(pid);
+            return "Connected to pid " + pid + ".";
+        }
+        if (!Processes.isAlive(pid, 0)) {
+            throw new IOException("No process with pid " + pid + ". Use list_apps to see running applications.");
+        }
+        String complaint;
+        try {
+            complaint = loadAgent(pid, apps.agentJar());
+        } catch (Unavailable e) {
+            throw new IOException(NEEDS_JDK);
+        }
+        long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+        while (System.nanoTime() < deadline) {
+            if (apps.find(pid) != null) {
+                apps.connect(pid);
+                return "Loaded the agent into running pid " + pid + " and connected. The application kept its state.";
+            }
+            Thread.sleep(100);
+        }
+        throw new IOException(complaint == null
+                ? "The agent was loaded into pid " + pid + " but did not report within 10 s."
+                : "The agent could not be loaded into pid " + pid + ": " + complaint);
+    }
+
+    /** Java processes without the agent that connect_app could attach to; empty on a JRE. */
+    static List<Jvm> otherJvms(Apps apps) throws IOException {
+        Set<Long> withAgent = new HashSet<Long>();
+        for (Apps.AppInfo app : apps.list()) {
+            withAgent.add(app.pid);
+        }
+        List<Jvm> others = new ArrayList<Jvm>();
+        try {
+            for (Jvm jvm : list()) {
+                if (!withAgent.contains(jvm.pid)) {
+                    others.add(jvm);
+                }
+            }
+        } catch (Unavailable e) {
+            return Collections.emptyList();
+        }
+        return others;
     }
 
     /** Java processes of this OS user, except this server. */

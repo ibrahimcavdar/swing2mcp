@@ -1,5 +1,8 @@
 package io.github.ibrahimcavdar.swing2mcp.mcp;
 
+import io.github.ibrahimcavdar.swing2mcp.client.AgentClient;
+import io.github.ibrahimcavdar.swing2mcp.client.Apps;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -136,7 +139,7 @@ final class Tools {
         });
         handlers.put("connect_app", new Handler() {
             public Result handle(Map<String, Object> args) throws Exception {
-                String result = apps.connectOrAttach(num(args, "pid", -1));
+                String result = Attacher.connectOrAttach(apps, num(args, "pid", -1));
                 return text(result + "\n" + apps.current().get("/ping", null, Duration.ofSeconds(3)));
             }
         });
@@ -209,7 +212,7 @@ final class Tools {
 
     private String listApps() throws IOException {
         List<Apps.AppInfo> list = apps.list();
-        List<Attacher.Jvm> others = apps.otherJvms();
+        List<Attacher.Jvm> others = Attacher.otherJvms(apps);
         if (list.isEmpty() && others.isEmpty()) {
             return "No running Java applications found.";
         }

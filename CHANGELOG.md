@@ -14,9 +14,10 @@ between releases.
 - Locators: wherever a tool takes a `ref`, it also takes a description of the component as the snapshot
   writes it, such as `button "Save"`, `field=txtName` or `dialog "Confirm" > button "OK"`. Unlike a ref, a
   locator stays valid from one run of the application to the next.
-- Experimental test API (`io.github.ibrahimcavdar.swing2mcp.test`, in the `swing2mcp` jar): tests written in
-  Java drive the application through the agent, without MCP or an AI tool, for example
-  `app.textField("Full Name").fill("Ali"); app.button("Save").click();`. Names and packaging may change.
+- Experimental test library, `swing2mcp-test`: tests written in Java use the application through the
+  agent, without MCP or an AI tool, for example
+  `app.textField("Full Name").fill("Ali"); app.button("Save").click();`. Its jar contains no MCP code.
+  Names may change.
 
 ### Changed
 

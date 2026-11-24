@@ -78,7 +78,7 @@ public final class Main {
         // The protocol gets the real stdout; anything else that prints lands on stderr.
         OutputStream protocol = new FileOutputStream(FileDescriptor.out);
         System.setOut(System.err);
-        Tools tools = new Tools(new Apps(Paths.get(System.getProperty("user.home"), ".swing2mcp")));
+        Tools tools = new Tools(io.github.ibrahimcavdar.swing2mcp.client.Apps.ofUser());
         new Main(tools, protocol).serve(new FileInputStream(FileDescriptor.in));
         // The client closing stdin means it is done with us.
         System.exit(0);

@@ -1,4 +1,4 @@
-package io.github.ibrahimcavdar.swing2mcp.mcp;
+package io.github.ibrahimcavdar.swing2mcp.client;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,6 +13,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -22,18 +23,21 @@ import java.util.Set;
 
 /**
  * Knows which Swing applications are running with the agent, launches new ones and keeps
- * track of the one the tools currently talk to.
+ * track of the one that is being talked to.
  *
  * Every agent writes {@code ~/.swing2mcp/jvms/<pid>.properties} with its port and token.
+ *
+ * <p>Internal, like the rest of this package: shared by the test API and the MCP server, and free to
+ * change between releases.
  */
-final class Apps {
+public final class Apps {
 
-    static final class AppInfo {
-        final long pid;
-        final int port;
-        final String token;
-        final String java;
-        final String command;
+    public static final class AppInfo {
+        public final long pid;
+        public final int port;
+        public final String token;
+        public final String java;
+        public final String command;
 
         AppInfo(long pid, int port, String token, String java, String command) {
             this.pid = pid;
@@ -45,22 +49,25 @@ final class Apps {
     }
 
     private static final String AGENT_RESOURCE = "/swing2mcp/swing2mcp-agent.jar";
-    private static final String NEEDS_JDK = "Attaching needs the MCP server to run on a JDK, not a JRE. "
-            + "Alternatively start the application with mvn swing2mcp:run.";
 
     private final Path home;
     private final Path registrations;
     private final Path logs;
     private AgentClient current;
 
-    Apps(Path home) {
+    public Apps(Path home) {
         this.home = home;
         this.registrations = home.resolve("jvms");
         this.logs = home.resolve("logs");
     }
 
+    /** The usual place: {@code ~/.swing2mcp}, where every agent of this user registers. */
+    public static Apps ofUser() {
+        return new Apps(Paths.get(System.getProperty("user.home"), ".swing2mcp"));
+    }
+
     /** Running applications; registrations of dead processes are removed. */
-    synchronized List<AppInfo> list() throws IOException {
+    public synchronized List<AppInfo> list() throws IOException {
         List<AppInfo> result = new ArrayList<AppInfo>();
         if (!Files.isDirectory(registrations)) {
             return result;
@@ -92,7 +99,7 @@ final class Apps {
         return result;
     }
 
-    synchronized AgentClient connect(long pid) throws IOException {
+    public synchronized AgentClient connect(long pid) throws IOException {
         AppInfo app = find(pid);
         if (app == null) {
             throw new IOException("No swing2mcp-enabled application with pid "
@@ -102,54 +109,8 @@ final class Apps {
         return current;
     }
 
-    /** Connects to a running Java application, loading the agent into it first if needed. */
-    String connectOrAttach(long pid) throws IOException, InterruptedException {
-        if (find(pid) != null) {
-            connect(pid);
-            return "Connected to pid " + pid + ".";
-        }
-        if (!Processes.isAlive(pid, 0)) {
-            throw new IOException("No process with pid " + pid + ". Use list_apps to see running applications.");
-        }
-        String complaint;
-        try {
-            complaint = Attacher.loadAgent(pid, extractAgent());
-        } catch (Attacher.Unavailable e) {
-            throw new IOException(NEEDS_JDK);
-        }
-        long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
-        while (System.nanoTime() < deadline) {
-            if (find(pid) != null) {
-                connect(pid);
-                return "Loaded the agent into running pid " + pid + " and connected. The application kept its state.";
-            }
-            Thread.sleep(100);
-        }
-        throw new IOException(complaint == null
-                ? "The agent was loaded into pid " + pid + " but did not report within 10 s."
-                : "The agent could not be loaded into pid " + pid + ": " + complaint);
-    }
-
-    /** Java processes without the agent that connect_app could attach to; empty on a JRE. */
-    List<Attacher.Jvm> otherJvms() throws IOException {
-        Set<Long> withAgent = new HashSet<Long>();
-        for (AppInfo app : list()) {
-            withAgent.add(app.pid);
-        }
-        List<Attacher.Jvm> others = new ArrayList<Attacher.Jvm>();
-        try {
-            for (Attacher.Jvm jvm : Attacher.list()) {
-                if (!withAgent.contains(jvm.pid)) {
-                    others.add(jvm);
-                }
-            }
-        } catch (Attacher.Unavailable e) {
-            return Collections.emptyList();
-        }
-        return others;
-    }
-
-    private AppInfo find(long pid) throws IOException {
+    /** The running application with this pid that has the agent, or null. */
+    public AppInfo find(long pid) throws IOException {
         for (AppInfo app : list()) {
             if (app.pid == pid) {
                 return app;
@@ -160,9 +121,9 @@ final class Apps {
 
     /**
      * The connected application; connects automatically when exactly one application has the
-     * agent. Never attaches on its own: loading the agent always needs an explicit connect_app.
+     * agent. Never attaches on its own: loading the agent always needs an explicit request.
      */
-    synchronized AgentClient current() throws IOException {
+    public synchronized AgentClient current() throws IOException {
         if (current != null && Processes.isAlive(current.pid, current.port)) {
             return current;
         }
@@ -183,7 +144,7 @@ final class Apps {
     }
 
     /** The pid of the connected application, or -1. */
-    synchronized long currentPid() {
+    public synchronized long currentPid() {
         return current == null ? -1 : current.pid;
     }
 
@@ -191,15 +152,18 @@ final class Apps {
      * Runs a shell command with the agent injected through JAVA_TOOL_OPTIONS, so it works
      * for {@code java -jar}, start scripts and IDE-generated command lines alike.
      */
-    String launch(String command, Path cwd, Duration timeout) throws IOException, InterruptedException {
-        Path agentJar = extractAgent();
+    public String launch(String command, Path cwd, Duration timeout) throws IOException, InterruptedException {
+        return launch(Processes.isWindows() ? Arrays.asList("cmd.exe", "/c", command)
+                : Arrays.asList("/bin/sh", "-c", command), cwd, timeout);
+    }
+
+    /** As {@link #launch(String, Path, Duration)}, for a program and its arguments, without a shell. */
+    public String launch(List<String> program, Path cwd, Duration timeout) throws IOException, InterruptedException {
+        Path agentJar = agentJar();
         Files.createDirectories(logs);
         Path log = logs.resolve("app-" + System.currentTimeMillis() + ".log");
 
-        boolean windows = Processes.isWindows();
-        ProcessBuilder builder = windows
-                ? new ProcessBuilder("cmd.exe", "/c", command)
-                : new ProcessBuilder("/bin/sh", "-c", command);
+        ProcessBuilder builder = new ProcessBuilder(program);
         if (cwd != null) {
             builder.directory(cwd.toFile());
         }
@@ -214,7 +178,7 @@ final class Apps {
         env.put("JAVA_TOOL_OPTIONS", (existing + " -javaagent:" + agentPath).trim());
         builder.redirectErrorStream(true);
         builder.redirectOutput(log.toFile());
-        builder.redirectInput(ProcessBuilder.Redirect.from(new File(windows ? "NUL" : "/dev/null")));
+        builder.redirectInput(ProcessBuilder.Redirect.from(new File(Processes.isWindows() ? "NUL" : "/dev/null")));
 
         Set<Long> before = new HashSet<Long>();
         for (AppInfo app : list()) {
@@ -257,7 +221,7 @@ final class Apps {
      * Ends an application that has the agent. Any other pid is refused: a wrong number from the
      * AI tool must not end an unrelated program.
      */
-    String stop(long pid) throws IOException {
+    public String stop(long pid) throws IOException {
         if (find(pid) == null) {
             throw new IOException("Not stopped: pid " + pid + " is not an application with the swing2mcp agent. "
                     + "stop_app only stops the applications that list_apps shows with the agent; "
@@ -284,8 +248,8 @@ final class Apps {
         throw new IOException(text.toString());
     }
 
-    /** Copies the embedded agent jar to ~/.swing2mcp/agent/, named by content hash. */
-    private Path extractAgent() throws IOException {
+    /** The agent jar as a file: the embedded one, copied to ~/.swing2mcp/agent/ and named by content hash. */
+    public Path agentJar() throws IOException {
         String override = System.getProperty("swing2mcp.agentJar");
         if (override != null) {
             return Paths.get(override).toAbsolutePath();

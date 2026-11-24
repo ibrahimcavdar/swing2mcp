@@ -1,4 +1,4 @@
-package io.github.ibrahimcavdar.swing2mcp.mcp;
+package io.github.ibrahimcavdar.swing2mcp.client;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -21,7 +21,7 @@ import java.util.stream.Stream;
  * through reflection when it is there, so that the same jar also runs on Java 8, where operating system
  * commands and the agent's port stand in.
  */
-final class Processes {
+public final class Processes {
 
     private static final Class<?> HANDLE = handleClass();
     private static final boolean WINDOWS = System.getProperty("os.name", "").toLowerCase().startsWith("windows");
@@ -37,11 +37,11 @@ final class Processes {
         }
     }
 
-    static boolean isWindows() {
+    public static boolean isWindows() {
         return WINDOWS;
     }
 
-    static long currentPid() {
+    public static long currentPid() {
         // "pid@host" on every JVM in practice; the method that returns the pid directly came with Java 10
         String name = ManagementFactory.getRuntimeMXBean().getName();
         int at = name.indexOf('@');
@@ -56,7 +56,7 @@ final class Processes {
      * Whether the application with this pid is still running. On Java 8 the agent's port answers that
      * for applications that have the agent (port &gt; 0): cheap, and asked many times per second.
      */
-    static boolean isAlive(long pid, int agentPort) {
+    public static boolean isAlive(long pid, int agentPort) {
         Object handle = handle(pid);
         if (HANDLE != null) {
             return handle != null && Boolean.TRUE.equals(call(handle, "isAlive"));
@@ -87,7 +87,7 @@ final class Processes {
     }
 
     /** Waits until the process is gone; false if it is still there after the time. */
-    static boolean waitForExit(long pid, int agentPort, long millis) {
+    public static boolean waitForExit(long pid, int agentPort, long millis) {
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millis);
         while (isAlive(pid, agentPort)) {
             if (System.nanoTime() >= deadline) {
@@ -104,7 +104,7 @@ final class Processes {
     }
 
     /** The pids of a process we started and of its descendants, or null where Java cannot tell (Java 8). */
-    static Set<Long> family(Process process) {
+    public static Set<Long> family(Process process) {
         if (HANDLE == null) {
             return null;
         }
@@ -122,7 +122,7 @@ final class Processes {
     }
 
     /** Ends a process and its descendants: politely first, by force if it is still there after 5 s. */
-    static void destroyTree(long pid) throws IOException {
+    public static void destroyTree(long pid) throws IOException {
         if (HANDLE != null) {
             Object handle = handle(pid);
             if (handle == null) {

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.github.ibrahimcavdar</groupId>
+    <artifactId>swing2mcp-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>swing2mcp-test</artifactId>
+  <name>swing2mcp test library</name>
+  <description>
+    Tests written in Java that use a Swing application through the swing2mcp agent: no MCP and no AI
+    tool. Java 8 and newer, no dependencies. Embeds the agent jar and starts applications with it.
+  </description>
+
+  <properties>
+    <swing2mcp.publish.skip>false</swing2mcp.publish.skip>
+  </properties>
+
+  <dependencies>
+    <!-- only for build ordering; the jar is embedded as a resource below -->
+    <dependency>
+      <groupId>io.github.ibrahimcavdar</groupId>
+      <artifactId>swing2mcp-agent</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>embed-agent</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>io.github.ibrahimcavdar</groupId>
+                  <artifactId>swing2mcp-agent</artifactId>
+                  <version>${project.version}</version>
+                  <destFileName>swing2mcp-agent.jar</destFileName>
+                </artifactItem>
+              </artifactItems>
+              <outputDirectory>${project.build.outputDirectory}/swing2mcp</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

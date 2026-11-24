@@ -1,4 +1,4 @@
-package io.github.ibrahimcavdar.swing2mcp.mcp;
+package io.github.ibrahimcavdar.swing2mcp.client;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -14,18 +14,18 @@ import java.time.Duration;
 import java.util.Map;
 
 /** HTTP client for one agent, i.e. one running Swing application. */
-final class AgentClient {
+public final class AgentClient {
 
-    static final String TOKEN_HEADER = "X-Swing2mcp-Token";
+    public static final String TOKEN_HEADER = "X-Swing2mcp-Token";
 
-    static class AgentException extends IOException {
+    public static class AgentException extends IOException {
         AgentException(String message) {
             super(message);
         }
     }
 
     /** The application ended while a call was in progress (e.g. the call clicked "Exit"). */
-    static final class AppExited extends AgentException {
+    public static final class AppExited extends AgentException {
         AppExited(long pid) {
             super("The application (pid " + pid + ") exited during this call.");
         }
@@ -38,25 +38,25 @@ final class AgentClient {
         System.setProperty("http.keepAlive", "false");
     }
 
-    final long pid;
-    final int port;
+    public final long pid;
+    public final int port;
     private final String token;
 
-    AgentClient(long pid, int port, String token) {
+    public AgentClient(long pid, int port, String token) {
         this.pid = pid;
         this.port = port;
         this.token = token;
     }
 
-    String get(String path, Map<String, ?> params, Duration timeout) throws IOException {
+    public String get(String path, Map<String, ?> params, Duration timeout) throws IOException {
         return new String(send(path, params, false, timeout), StandardCharsets.UTF_8);
     }
 
-    String post(String path, Map<String, ?> params, Duration timeout) throws IOException {
+    public String post(String path, Map<String, ?> params, Duration timeout) throws IOException {
         return new String(send(path, params, true, timeout), StandardCharsets.UTF_8);
     }
 
-    byte[] getBytes(String path, Map<String, ?> params, Duration timeout) throws IOException {
+    public byte[] getBytes(String path, Map<String, ?> params, Duration timeout) throws IOException {
         return send(path, params, false, timeout);
     }
 
@@ -101,7 +101,7 @@ final class AgentClient {
         return Processes.waitForExit(pid, port, 5000);
     }
 
-    static byte[] readAll(InputStream in) throws IOException {
+    public static byte[] readAll(InputStream in) throws IOException {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             byte[] buffer = new byte[8192];

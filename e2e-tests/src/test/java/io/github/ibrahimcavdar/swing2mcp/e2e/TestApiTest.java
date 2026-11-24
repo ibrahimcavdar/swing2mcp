@@ -27,7 +27,7 @@ class TestApiTest {
     @BeforeAll
     void startApplication() {
         TestEnvironment.requireDisplay();
-        app = SwingApp.launch(TestEnvironment.demoCommand(), TestEnvironment.demoDir().toFile());
+        app = SwingApp.launchCommand(TestEnvironment.demoCommand(), TestEnvironment.demoDir().toFile());
     }
 
     @AfterAll

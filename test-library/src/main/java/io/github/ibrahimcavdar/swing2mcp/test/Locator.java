@@ -125,7 +125,7 @@ public class Locator {
                 return;
             }
             if (System.currentTimeMillis() >= deadline) {
-                throw new AssertionError(locator + " should " + expectation + ", but after " + app.timeoutMs()
+                throw app.failure(locator + " should " + expectation + ", but after " + app.timeoutMs()
                         + " ms " + (state == null ? "it is not on screen." : "it is:\n" + state.text));
             }
             try {

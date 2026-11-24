@@ -21,10 +21,11 @@
   </properties>
 
   <dependencies>
-    <!-- only for build ordering; the jar is embedded as a resource below -->
+    <!-- Compiled against, then copied into this jar below (the connection classes and the agent jar
+         it carries), so that the server stays one file without dependencies. -->
     <dependency>
       <groupId>io.github.ibrahimcavdar</groupId>
-      <artifactId>swing2mcp-agent</artifactId>
+      <artifactId>swing2mcp-test</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -59,21 +60,22 @@
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
-            <id>embed-agent</id>
+            <id>embed-client-and-agent</id>
             <phase>prepare-package</phase>
             <goals>
-              <goal>copy</goal>
+              <goal>unpack</goal>
             </goals>
             <configuration>
               <artifactItems>
                 <artifactItem>
                   <groupId>io.github.ibrahimcavdar</groupId>
-                  <artifactId>swing2mcp-agent</artifactId>
+                  <artifactId>swing2mcp-test</artifactId>
                   <version>${project.version}</version>
-                  <destFileName>swing2mcp-agent.jar</destFileName>
+                  <!-- not the test API itself: the server does not use it -->
+                  <includes>io/github/ibrahimcavdar/swing2mcp/client/**,swing2mcp/swing2mcp-agent.jar</includes>
                 </artifactItem>
               </artifactItems>
-              <outputDirectory>${project.build.outputDirectory}/swing2mcp</outputDirectory>
+              <outputDirectory>${project.build.outputDirectory}</outputDirectory>
             </configuration>
           </execution>
         </executions>

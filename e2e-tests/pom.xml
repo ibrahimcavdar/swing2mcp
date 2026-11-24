@@ -50,6 +50,13 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- The test library is used the way a user's tests use it -->
+    <dependency>
+      <groupId>io.github.ibrahimcavdar</groupId>
+      <artifactId>swing2mcp-test</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>io.github.ibrahimcavdar</groupId>
       <artifactId>swing2mcp-demo-app</artifactId>
