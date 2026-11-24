@@ -42,8 +42,16 @@ class AttachTest {
     @Test
     void loadsTheAgentIntoARunningApplication() throws Exception {
         long pid = application.pid();
+        // A JVM that has only just started is not in the attach listing yet (seen with Java 8).
         Result listed = ok(mcp.call("list_apps"));
-        String others = listed.text().substring(Math.max(0, listed.text().indexOf("no agent yet")));
+        String others = "";
+        for (long deadline = System.nanoTime() + 15_000_000_000L; System.nanoTime() < deadline; Thread.sleep(200)) {
+            listed = ok(mcp.call("list_apps"));
+            others = listed.text().substring(Math.max(0, listed.text().indexOf("no agent yet")));
+            if (others.contains("pid " + pid + " ")) {
+                break;
+            }
+        }
         assertTrue(others.contains("pid " + pid + " "), "pid " + pid + " should be listed without agent:\n"
                 + listed.text());
 
