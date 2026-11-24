@@ -54,6 +54,9 @@ import java.util.concurrent.ThreadFactory;
  *   GET  /spring/beans?filter          Spring beans, if a Spring context can be found
  *   POST /spring/open  name            show a window/panel bean directly
  *   POST /reload classesDir, rebuild, refs   apply recompiled classes to the running application
+ *   GET  /locate?ref&timeoutMs         the ref and snapshot lines of what a locator finds
+ *
+ * Wherever a ref is taken, a locator such as {@code button "Save"} works too: see {@link Locators}.
  */
 final class AgentServer {
 
@@ -67,6 +70,7 @@ final class AgentServer {
     private final String token;
     private final Object actionLock = new Object();
     private final RefRegistry refs = new RefRegistry();
+    private final Locators locators = new Locators(refs);
     private final Actions actions = new Actions(refs);
     private final Drags drags = new Drags(refs);
     private final SpringSupport spring;
@@ -122,6 +126,8 @@ final class AgentServer {
                     text(exchange, 200, ping());
                 } else if ("/snapshot".equals(path)) {
                     text(exchange, 200, snapshot(params) + ErrorMonitor.get().takeReport());
+                } else if ("/locate".equals(path)) {
+                    text(exchange, 200, locate(params));
                 } else if ("/screenshot".equals(path)) {
                     send(exchange, 200, "image/png", screenshot(params));
                 } else if ("/click".equals(path)) {
@@ -269,7 +275,7 @@ final class AgentServer {
             public String call() {
                 Window only = null;
                 if (!Text.isBlank(windowRef)) {
-                    Component c = refs.resolve(windowRef.trim());
+                    Component c = locators.now(windowRef.trim());
                     if (!(c instanceof Window)) {
                         throw new IllegalArgumentException(windowRef + " is not a window ref");
                     }
@@ -285,32 +291,47 @@ final class AgentServer {
         if (Text.isBlank(ref)) {
             throw new IllegalArgumentException("Missing parameter: ref");
         }
+        final Component c = locators.resolve(ref.trim(), params);
         return Edt.call(new Callable<String>() {
             public String call() {
-                Component c = refs.resolve(ref.trim());
-                if (c == null) {
-                    throw new IllegalArgumentException("Unknown or disposed ref " + ref + "; take a new snapshot");
-                }
                 return Items.read(c, params);
             }
         }, SNAPSHOT_TIMEOUT_MS);
     }
 
+    /**
+     * What a locator (or ref) stands for right now: its ref, then its part of the snapshot. A locator that
+     * matches nothing is waited for, up to timeoutMs.
+     */
+    private String locate(final Map<String, String> params) throws Exception {
+        final String target = params.get("ref");
+        if (Text.isBlank(target)) {
+            throw new IllegalArgumentException("Missing parameter: ref");
+        }
+        if (Locators.isRef(target)) {
+            throw new IllegalArgumentException("locate takes a locator such as button \"Save\", not a ref");
+        }
+        final String locator = target.trim();
+        Locators.Found found = Actions.whenUsable(params, new StringBuilder(), new Callable<Locators.Found>() {
+            public Locators.Found call() {
+                return locators.find(locator);
+            }
+        });
+        return "ref=" + refs.refFor(found.component) + "\n" + found.text;
+    }
+
     private byte[] screenshot(Map<String, String> params) throws Exception {
         final String ref = params.get("ref");
+        final Component given = Text.isBlank(ref) ? null : locators.resolve(ref.trim(), params);
         BufferedImage image = Edt.call(new Callable<BufferedImage>() {
             public BufferedImage call() {
-                Component target;
-                if (Text.isBlank(ref)) {
+                Component target = given;
+                if (target == null) {
                     target = Screenshots.defaultTarget();
                     if (target == null) {
                         throw new IllegalArgumentException("No visible window to capture");
                     }
                 } else {
-                    target = refs.resolve(ref.trim());
-                    if (target == null) {
-                        throw new IllegalArgumentException("Unknown or disposed ref " + ref + "; take a new snapshot");
-                    }
                     if (!target.isShowing()) {
                         throw new IllegalArgumentException(ref + " is not visible");
                     }

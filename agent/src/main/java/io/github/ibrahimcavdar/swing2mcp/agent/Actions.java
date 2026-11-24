@@ -60,9 +60,11 @@ final class Actions {
     private static final long DIALOG_WAIT_MS = 3000;
 
     private final RefRegistry refs;
+    private final Locators locators;
 
     Actions(RefRegistry refs) {
         this.refs = refs;
+        this.locators = new Locators(refs);
     }
 
     static final class Result {
@@ -573,8 +575,7 @@ final class Actions {
             public Window call() {
                 Window w;
                 if (!Text.isBlank(ref)) {
-                    Component c = refs.resolve(ref.trim());
-                    w = c == null ? null : Keys.windowOf(c);
+                    w = Keys.windowOf(locators.now(ref.trim()));
                     if (w == null) {
                         throw new IllegalArgumentException("Unknown or disposed ref " + ref + "; take a new snapshot");
                     }
@@ -1268,16 +1269,12 @@ final class Actions {
         return new Result(sb.toString(), settled);
     }
 
-    private Component resolve(Map<String, String> p) {
+    private Component resolve(Map<String, String> p) throws Exception {
         String ref = p.get("ref");
         if (Text.isBlank(ref)) {
             throw new IllegalArgumentException("Missing parameter: ref");
         }
-        Component c = refs.resolve(ref.trim());
-        if (c == null) {
-            throw new IllegalArgumentException("Unknown or disposed ref " + ref + "; take a new snapshot");
-        }
-        return c;
+        return locators.resolve(ref.trim(), p);
     }
 
     /** The component cannot take input yet; the action waits and checks again. */

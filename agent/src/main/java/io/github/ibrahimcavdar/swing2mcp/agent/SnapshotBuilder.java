@@ -71,6 +71,57 @@ final class SnapshotBuilder {
     private final Naming naming = new Naming();
     /** Where keys go now (also in an inactive window); marked "focused". */
     private Component focusOwner;
+    /** The components that got a line, in order; only kept when {@link #collectEntries()} was called. */
+    private List<Entry> entries;
+    /** The component whose line is being written: set by {@link #ref}, taken by {@link #line}. */
+    private Component pending;
+
+    /** A component with its own line in the snapshot: what a locator can find. */
+    static final class Entry {
+        final Component component;
+        final int depth;
+        final String line;
+        /** The Java field of the application that holds the component, or null. */
+        final String field;
+        /** The entry this one is listed under (its window, group, panel...), or null for a window. */
+        final Entry parent;
+        final int start;
+
+        Entry(Component component, int depth, String line, String field, Entry parent, int start) {
+            this.component = component;
+            this.depth = depth;
+            this.line = line;
+            this.field = field;
+            this.parent = parent;
+            this.start = start;
+        }
+    }
+
+    /** Call before {@link #build}: makes it remember which component each line describes. */
+    SnapshotBuilder collectEntries() {
+        entries = new ArrayList<Entry>();
+        return this;
+    }
+
+    List<Entry> entries() {
+        return entries;
+    }
+
+    /** The lines of an entry and of everything listed under it, without the entry's own indentation. */
+    String textOf(Entry entry) {
+        int end = out.length();
+        for (int i = entries.indexOf(entry) + 1; i < entries.size(); i++) {
+            if (entries.get(i).depth <= entry.depth) {
+                end = entries.get(i).start;
+                break;
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String line : out.substring(entry.start, end).split("\n")) {
+            sb.append(line.length() >= entry.depth * 2 ? line.substring(entry.depth * 2) : line).append('\n');
+        }
+        return sb.toString();
+    }
 
     SnapshotBuilder(RefRegistry refs, Options options) {
         this.refs = refs;
@@ -644,6 +695,7 @@ final class SnapshotBuilder {
     }
 
     private String ref(Component c) {
+        pending = c;
         return " [ref=" + refs.refFor(c) + "]";
     }
 
@@ -706,6 +758,16 @@ final class SnapshotBuilder {
     }
 
     private void line(int depth, String text) {
+        if (entries != null && pending != null) {
+            Entry parent = null;
+            for (int i = entries.size() - 1; i >= 0 && parent == null; i--) {
+                if (entries.get(i).depth < depth) {
+                    parent = entries.get(i);
+                }
+            }
+            entries.add(new Entry(pending, depth, text, naming.fieldName(pending), parent, out.length()));
+        }
+        pending = null;
         for (int i = 0; i < depth; i++) {
             out.append("  ");
         }

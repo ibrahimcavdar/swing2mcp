@@ -128,16 +128,12 @@ final class Drags {
         return mouse(plan, p, waited.toString());
     }
 
-    private Component resolve(Map<String, String> p, String key) {
+    private Component resolve(Map<String, String> p, String key) throws Exception {
         String ref = p.get(key);
         if (Text.isBlank(ref)) {
             throw new IllegalArgumentException("Missing parameter: " + key);
         }
-        Component c = refs.resolve(ref.trim());
-        if (c == null) {
-            throw new IllegalArgumentException("Unknown or disposed ref " + ref + "; take a new snapshot");
-        }
-        return c;
+        return new Locators(refs).resolve(ref.trim(), p);
     }
 
     private static String route(Plan plan) {
