@@ -83,7 +83,41 @@ public final class SwingApp extends Scope implements AutoCloseable {
         return start(null, command, null);
     }
 
+    /**
+     * While a test is being written, starting the application for every run is slow. With the system
+     * property {@code swing2mcp.connect} (or the environment variable {@code SWING2MCP_CONNECT}) set to the
+     * pid of an application that runs with the agent, or to {@code running} for the only such
+     * application, the launch methods connect to it instead, and {@link #close()} leaves it running.
+     */
+    private static SwingApp running() {
+        String wanted = System.getProperty("swing2mcp.connect", System.getenv("SWING2MCP_CONNECT"));
+        if (wanted == null || wanted.trim().isEmpty()) {
+            return null;
+        }
+        wanted = wanted.trim();
+        if (!wanted.equals("running")) {
+            try {
+                return connect(Long.parseLong(wanted));
+            } catch (NumberFormatException e) {
+                throw new IllegalStateException("swing2mcp.connect must be a pid or \"running\", not " + wanted);
+            }
+        }
+        Apps apps = Apps.ofUser();
+        try {
+            return new SwingApp(apps, apps.current(), false);
+        } catch (IOException e) {
+            throw new IllegalStateException("swing2mcp.connect=running, but " + e.getMessage()
+                    .replace("Use list_apps, then connect_app with a pid, or start one with launch_app.",
+                            "Start the application with the agent first, e.g. with mvn swing2mcp:run.")
+                    .replace("Choose one with connect_app.", "Give the pid instead: swing2mcp.connect=<pid>."), e);
+        }
+    }
+
     private static SwingApp start(List<String> program, String command, File workingDirectory) {
+        SwingApp running = running();
+        if (running != null) {
+            return running;
+        }
         Apps apps = Apps.ofUser();
         Path cwd = workingDirectory == null ? null : workingDirectory.toPath();
         try {

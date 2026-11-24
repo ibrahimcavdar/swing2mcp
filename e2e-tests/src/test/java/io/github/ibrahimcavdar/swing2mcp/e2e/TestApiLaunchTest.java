@@ -32,6 +32,15 @@ class TestApiLaunchTest {
                 same.button("Log In").shouldBeEnabled();
             }
             assertTrue(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false));
+
+            // While a test is being written: the same launch call uses the running application instead.
+            System.setProperty("swing2mcp.connect", String.valueOf(pid));
+            try (SwingApp reused = SwingApp.launch(DemoApp.class)) {
+                assertEquals(pid, reused.pid());
+            } finally {
+                System.clearProperty("swing2mcp.connect");
+            }
+            assertTrue(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false));
         }
         assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false), "close() must end it");
     }
