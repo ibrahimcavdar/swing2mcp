@@ -20,6 +20,11 @@ public final class ItemList extends Locator {
         return require().number("items");
     }
 
+    /** The position of the first selected item, counting from 0; -1 if none is selected. */
+    public int selectedIndex() {
+        return require().firstOf("selected");
+    }
+
     /** All items, one per line, as the user sees them. */
     public String read() {
         return app.get("/read", target());

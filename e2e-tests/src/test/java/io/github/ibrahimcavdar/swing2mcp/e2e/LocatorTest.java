@@ -101,6 +101,17 @@ class LocatorTest {
         assertContains(about, "Answered dialog");
     }
 
+    @Test
+    @Order(7)
+    void findsByARegularExpressionInTheName() throws Exception {
+        Result cleared = ok(mcp.call("click", "ref", "button /^cle/i"));
+        assertContains(cleared, "Clicked JButton \"Clear\"");
+
+        Result invalid = mcp.call("click", "ref", "button /(/");
+        assertTrue(invalid.error(), invalid.text());
+        assertContains(invalid, "is not a regular expression");
+    }
+
     private static void assertContains(Result result, String expected) {
         assertTrue(result.text().contains(expected), "Expected '" + expected + "' in:\n" + result.text());
     }

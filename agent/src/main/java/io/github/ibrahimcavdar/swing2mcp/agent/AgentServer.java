@@ -55,6 +55,7 @@ import java.util.concurrent.ThreadFactory;
  *   POST /spring/open  name            show a window/panel bean directly
  *   POST /reload classesDir, rebuild, refs   apply recompiled classes to the running application
  *   GET  /locate?ref&timeoutMs         the ref and snapshot lines of what a locator finds
+ *   GET  /cell?ref&row&col             what one table cell shows; col is an index or a column name
  *
  * Wherever a ref is taken, a locator such as {@code button "Save"} works too: see {@link Locators}.
  */
@@ -128,6 +129,8 @@ final class AgentServer {
                     text(exchange, 200, snapshot(params) + ErrorMonitor.get().takeReport());
                 } else if ("/locate".equals(path)) {
                     text(exchange, 200, locate(params));
+                } else if ("/cell".equals(path)) {
+                    text(exchange, 200, cell(params));
                 } else if ("/screenshot".equals(path)) {
                     send(exchange, 200, "image/png", screenshot(params));
                 } else if ("/click".equals(path)) {
@@ -295,6 +298,19 @@ final class AgentServer {
         return Edt.call(new Callable<String>() {
             public String call() {
                 return Items.read(c, params);
+            }
+        }, SNAPSHOT_TIMEOUT_MS);
+    }
+
+    private String cell(final Map<String, String> params) throws Exception {
+        final String ref = params.get("ref");
+        if (Text.isBlank(ref)) {
+            throw new IllegalArgumentException("Missing parameter: ref");
+        }
+        final Component c = locators.resolve(ref.trim(), params);
+        return Edt.call(new Callable<String>() {
+            public String call() {
+                return Items.cell(c, params);
             }
         }, SNAPSHOT_TIMEOUT_MS);
     }

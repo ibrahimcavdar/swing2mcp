@@ -421,6 +421,23 @@ final class Items {
         return sb.toString();
     }
 
+    /** What one cell shows, and nothing else: for callers that compare it. Column by index or name. */
+    static String cell(Component c, Map<String, String> p) {
+        if (!(c instanceof JTable)) {
+            throw new IllegalArgumentException(Actions.describe(c) + " is not a table");
+        }
+        JTable table = (JTable) c;
+        if (Text.isBlank(p.get("row")) || Text.isBlank(p.get("col"))) {
+            throw new IllegalArgumentException("Missing parameter: row and col");
+        }
+        int row = intParam(p, "row", -1);
+        if (row < 0 || row >= table.getRowCount()) {
+            throw new IllegalArgumentException("No row " + row + ": " + Actions.describe(table) + " has "
+                    + table.getRowCount() + " rows");
+        }
+        return cellText(table, row, columns(table, p.get("col")).get(0));
+    }
+
     /** Columns by index or name ("0,2" or "Name,City"); all when blank. */
     private static List<Integer> columns(JTable table, String spec) {
         List<Integer> cols = new ArrayList<Integer>();

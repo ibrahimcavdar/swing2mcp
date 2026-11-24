@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
  *
  * <pre>
  *   button "Save"                      role and name
+ *   label /saved: .+/                  a regular expression found in the name; /save/i ignores case
  *   field=txtName                      the Java field that holds the component
  *   textfield field=txtName            both
  *   dialog "Confirm" &gt; button "OK"     inside something (a window, group, panel, tabs...)
@@ -57,6 +58,8 @@ final class Locators {
     private static final class Step {
         String role;
         String name;
+        /** In place of a name: a regular expression that must be found in the name. */
+        Pattern pattern;
         String field;
 
         boolean matches(SnapshotBuilder.Entry entry) {
@@ -66,6 +69,10 @@ final class Locators {
             if (field != null && !field.equals(entry.field)) {
                 return false;
             }
+            if (pattern != null) {
+                String shown = nameOf(entry.line);
+                return shown != null && pattern.matcher(shown).find();
+            }
             return name == null || sameName(name, nameOf(entry.line));
         }
 
@@ -74,6 +81,10 @@ final class Locators {
             StringBuilder sb = new StringBuilder(role == null ? "" : role);
             if (name != null) {
                 sb.append(sb.length() > 0 ? " " : "").append(Text.quote(name));
+            }
+            if (pattern != null) {
+                sb.append(sb.length() > 0 ? " " : "").append('/').append(pattern.pattern()).append('/')
+                        .append((pattern.flags() & Pattern.CASE_INSENSITIVE) != 0 ? "i" : "");
             }
             if (field != null) {
                 sb.append(sb.length() > 0 ? " " : "").append("field=").append(field);
@@ -281,13 +292,27 @@ final class Locators {
                 steps.add(checked(step, locator));
                 step = new Step();
                 at++;
-            } else if (c == '"') {
-                if (step.name != null) {
+            } else if (c == '"' || c == '/') {
+                if (step.name != null || step.pattern != null) {
                     throw bad(locator, "two names in one part");
                 }
                 StringBuilder name = new StringBuilder();
-                at = readQuoted(locator, at, name);
-                step.name = name.toString();
+                if (c == '"') {
+                    at = readQuoted(locator, at, name);
+                    step.name = name.toString();
+                } else {
+                    at = readRegex(locator, at, name);
+                    int flags = 0;
+                    if (at < locator.length() && locator.charAt(at) == 'i') {
+                        flags = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
+                        at++;
+                    }
+                    try {
+                        step.pattern = Pattern.compile(name.toString(), flags);
+                    } catch (java.util.regex.PatternSyntaxException e) {
+                        throw bad(locator, "/" + name + "/ is not a regular expression (" + e.getDescription() + ")");
+                    }
+                }
             } else {
                 int end = at;
                 while (end < locator.length() && " \">".indexOf(locator.charAt(end)) < 0) {
@@ -306,7 +331,7 @@ final class Locators {
                     }
                 } else if (word.startsWith("field=") && word.length() > 6) {
                     step.field = word.substring(6);
-                } else if (step.role != null || step.name != null || step.field != null) {
+                } else if (step.role != null || step.name != null || step.pattern != null || step.field != null) {
                     throw bad(locator, "unexpected " + Text.quote(word) + "; names go in double quotes");
                 } else if (!ROLES.contains(word)) {
                     throw bad(locator, Text.quote(word) + " is not a role. Roles: " + ROLES);
@@ -320,7 +345,7 @@ final class Locators {
     }
 
     private static Step checked(Step step, String locator) {
-        if (step.role == null && step.name == null && step.field == null) {
+        if (step.role == null && step.name == null && step.pattern == null && step.field == null) {
             throw bad(locator, "an empty part");
         }
         return step;
@@ -338,6 +363,25 @@ final class Locators {
             char c = s.charAt(at);
             if (c == '\\' && at + 1 < s.length() && (s.charAt(at + 1) == '"' || s.charAt(at + 1) == 'n')) {
                 into.append(s.charAt(at + 1) == 'n' ? '\n' : '"');
+                at += 2;
+            } else {
+                into.append(c);
+                at++;
+            }
+        }
+        return at + 1;
+    }
+
+    /** Reads /regex/ ("\/" is a slash inside it); returns the index after the closing slash. */
+    private static int readRegex(String s, int openingSlash, StringBuilder into) {
+        int at = openingSlash + 1;
+        while (at < s.length() && s.charAt(at) != '/') {
+            char c = s.charAt(at);
+            if (c == '\\' && at + 1 < s.length()) {
+                if (s.charAt(at + 1) != '/') {
+                    into.append(c);
+                }
+                into.append(s.charAt(at + 1));
                 at += 2;
             } else {
                 into.append(c);

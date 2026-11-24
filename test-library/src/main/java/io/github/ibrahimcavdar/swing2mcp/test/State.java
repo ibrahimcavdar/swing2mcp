@@ -58,6 +58,20 @@ final class State {
         return value.toString();
     }
 
+    /** The first number in the list after {@code key=[}, e.g. 2 for selected=[2,5-7]; -1 if there is none. */
+    int firstOf(String key) {
+        int at = states.indexOf(" " + key + "=[");
+        if (at < 0) {
+            return -1;
+        }
+        int start = at + key.length() + 3;
+        int end = start;
+        while (end < states.length() && Character.isDigit(states.charAt(end))) {
+            end++;
+        }
+        return end == start ? -1 : Integer.parseInt(states.substring(start, end));
+    }
+
     /** The number after {@code key=}, e.g. rows=4; -1 if there is none. */
     int number(String key) {
         int at = states.indexOf(" " + key + "=");

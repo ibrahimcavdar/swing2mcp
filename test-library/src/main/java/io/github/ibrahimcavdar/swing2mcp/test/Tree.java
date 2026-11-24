@@ -29,6 +29,11 @@ public final class Tree extends Locator {
         act("/expand", params);
     }
 
+    /** The path of the selected node, e.g. {@code "Root/Child"}; null if none is selected. */
+    public String selectedPath() {
+        return require().quoted("selected");
+    }
+
     /** The visible rows, one per line. */
     public String read() {
         return app.get("/read", target());

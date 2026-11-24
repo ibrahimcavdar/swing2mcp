@@ -46,6 +46,15 @@ public final class Container extends Scope {
         self().shouldNotExist();
     }
 
+    /** Waits until this text is somewhere in it, e.g. the message of a dialog. */
+    public void shouldShow(final String text) {
+        self().should("show \"" + text + "\"", new Locator.Check() {
+            public boolean ok(State state) {
+                return state != null && state.text.contains(text);
+            }
+        });
+    }
+
     /** Its part of the snapshot: everything in it, as text. */
     public String describe() {
         return self().describe();

@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import java.util.regex.Pattern;
+
 /**
  * The demo application tested the way a user of the test API would: no MCP server, no refs, no AI tool.
  * The steps build on each other, so they run in order.
@@ -62,6 +64,8 @@ class TestApiTest {
         app.button("Save").click();
 
         app.label("Customer saved: Ali Veli").shouldExist();
+        app.label(Pattern.compile("saved: Ali")).shouldExist();
+        app.button(Pattern.compile("^sav", Pattern.CASE_INSENSITIVE)).shouldBeEnabled();
         app.table().shouldHaveRowCount(4);
         app.table().shouldContain("Ali Veli |  | İzmir");
         app.textField("Full Name").shouldHaveValue("");
@@ -85,6 +89,13 @@ class TestApiTest {
         assertTrue(app.checkBox("Active customer").isChecked());
         assertEquals("Ankara", app.comboBox("City").value());
         assertEquals(4, app.table().rowCount());
+
+        assertEquals("Ali Veli", app.table().cell(3, "Full Name"));
+        assertEquals("Ali Veli", app.table().cell(3, 1));
+        app.table().shouldHaveCell(3, "City", "İzmir");
+        assertEquals(-1, app.table().selectedRow());
+        app.table().selectRow("Mehmet Demir");
+        app.table().shouldHaveSelectedRow(1);
         assertFalse(app.dialog("Login").exists());
     }
 
@@ -109,6 +120,17 @@ class TestApiTest {
                 () -> app.comboBox("City").shouldHaveValue("Bursa"));
         assertTrue(wrong.getMessage().contains("should have the value \"Bursa\""), wrong.getMessage());
         assertTrue(wrong.getMessage().contains("value=\"Ankara\""), wrong.getMessage());
+
+        AssertionError cell = assertThrows(AssertionError.class,
+                () -> app.table().shouldHaveCell(0, "City", "Bursa"));
+        assertTrue(cell.getMessage().contains("That cell shows \"Ankara\"."), cell.getMessage());
+
+        java.io.File pictures = new java.io.File(System.getProperty("swing2mcp.workDir"), "failure-screenshots");
+        app.screenshotsOnFailure(pictures);
+        AssertionError pictured = assertThrows(AssertionError.class, () -> app.button("Sav").click());
+        app.screenshotsOnFailure(null);
+        String path = pictured.getMessage().substring(pictured.getMessage().indexOf("Screenshot: ") + 12).trim();
+        assertTrue(new java.io.File(path).length() > 5000, pictured.getMessage());
         app.timeout(5000);
     }
 
@@ -122,6 +144,7 @@ class TestApiTest {
 
         app.selectMenu("Help > About");
         app.dialog("About").shouldExist();
+        app.dialog("About").shouldShow("(c) 2009 ACME");
         String said = app.answerDialog("ok");
         assertTrue(said.contains("ACME Customer Manager 3.2"), said);
 
@@ -141,7 +164,9 @@ class TestApiTest {
             if (!java.lang.reflect.Modifier.isPublic(method.getModifiers()) || method.getName().equals("locator")) {
                 continue;
             }
-            Object found = method.getParameterCount() == 0 ? method.invoke(app) : method.invoke(app, "no such name");
+            Object found = method.getParameterCount() == 0 ? method.invoke(app)
+                    : method.getParameterTypes()[0] == Pattern.class ? method.invoke(app, Pattern.compile("no such name"))
+                    : method.invoke(app, "no such name");
             try {
                 found.getClass().getMethod("exists").invoke(found);
             } catch (java.lang.reflect.InvocationTargetException e) {
@@ -151,6 +176,6 @@ class TestApiTest {
             }
             asked++;
         }
-        assertTrue(asked >= 20, "only " + asked + " methods found");
+        assertTrue(asked >= 40, "only " + asked + " methods found");
     }
 }

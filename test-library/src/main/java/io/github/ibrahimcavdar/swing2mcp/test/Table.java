@@ -40,6 +40,54 @@ public final class Table extends Locator {
         return app.get("/read", params);
     }
 
+    /** What the cell shows. Rows count from 0, as on screen; the column is its header text. */
+    public String cell(int row, String column) {
+        return cellAt(row, column);
+    }
+
+    /** What the cell shows. Rows and columns count from 0, as on screen. */
+    public String cell(int row, int column) {
+        return cellAt(row, column);
+    }
+
+    private String cellAt(int row, Object column) {
+        Map<String, Object> params = target();
+        params.put("row", row);
+        params.put("col", column);
+        return app.get("/cell", params);
+    }
+
+    /** The first selected row, or -1. */
+    public int selectedRow() {
+        return require().firstOf("selected");
+    }
+
+    public void shouldHaveCell(final int row, final String column, final String expected) {
+        final String[] last = {null};
+        try {
+            should("show \"" + expected + "\" in row " + row + ", column \"" + column + "\"", new Check() {
+                public boolean ok(State state) {
+                    if (state == null || state.number("rows") <= row) {
+                        last[0] = null;
+                        return false;
+                    }
+                    last[0] = cellAt(row, column);
+                    return expected.equals(last[0]);
+                }
+            });
+        } catch (AssertionError e) {
+            throw last[0] == null ? e : new AssertionError(e.getMessage() + "\nThat cell shows \"" + last[0] + "\".");
+        }
+    }
+
+    public void shouldHaveSelectedRow(final int expected) {
+        should("have row " + expected + " selected", new Check() {
+            public boolean ok(State state) {
+                return state != null && state.firstOf("selected") == expected;
+            }
+        });
+    }
+
     public void shouldHaveRowCount(final int expected) {
         should("have " + expected + " rows", new Check() {
             public boolean ok(State state) {
