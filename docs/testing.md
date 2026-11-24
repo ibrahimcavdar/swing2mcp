@@ -6,6 +6,8 @@ The same agent that lets an AI tool use your application can run tests against i
 there is no MCP server and no AI tool involved when it runs, and the application is not changed.
 
 ```java
+import io.github.ibrahimcavdar.swing2mcp.test.SwingApp;
+
 try (SwingApp app = SwingApp.launch(Main.class)) {
     app.textField("User name").fill("admin");
     app.passwordField("Password").fill("admin");
@@ -56,6 +58,37 @@ and a check that does not hold both throw an `AssertionError`.
 `close()` ends an application the test started and leaves one it connected to running. The application
 always runs in its own process: it can call `System.exit` without taking the tests with it.
 
+`launchCommand` takes one string, as you would type it into a shell (`"java -jar C:/apps/demo.jar"`), and
+runs it in the current directory, or in the directory given as a second argument. Put quotes around a
+path with spaces, as in a shell.
+
+Nothing has to wait for the application to come up: the first step of the test waits for its component,
+also through a splash screen. If the start takes longer than 10 seconds, raise the timeout for that step
+(`app.timeout(60000)`).
+
+A test class usually keeps the application in a field:
+
+```java
+private SwingApp app;
+
+@BeforeEach
+void start() {
+    app = SwingApp.launch(Main.class);
+    app.textField("User name").fill("admin");
+    app.passwordField("Password").fill("admin");
+    app.button("Log In").click();
+}
+
+@AfterEach
+void stop() {
+    app.close();
+}
+```
+
+This starts the application once per test method, which keeps the tests independent and costs its start
+time each time. With `@BeforeAll` and `@AfterAll` it starts once per class, and the test methods share
+its state.
+
 ## Finding components
 
 There is one method per kind of component. The name is what a user would call the component: a button's
@@ -71,6 +104,27 @@ app.list(), app.tree(), app.tabs()
 app.label("Ready")
 app.menuItem("Export to Excel")
 ```
+
+Only `table()`, `list()`, `tree()` and `tabs()` can be asked for without a name. For any other component
+that has no name, use its Java field (below).
+
+Each method returns a type that offers only what that kind of component can do:
+
+| Method | Returns | Besides `click()` and the common checks |
+|---|---|---|
+| `button`, `menuItem`, `label` | `Button`, `Locator` | |
+| `checkBox`, `radioButton`, `toggleButton` | `Toggle` | `check()`, `uncheck()`, `isChecked()`, `shouldBeChecked()`, `shouldBeUnchecked()` |
+| `textField`, `passwordField`, `textArea`, `spinner` | `TextInput` | `fill()`, `append()`, `fillAndSubmit()`, `value()`, `shouldHaveValue()` |
+| `comboBox` | `ComboBox` | `select()`, `value()`, `shouldHaveValue()` |
+| `list` | `ItemList` | `select()`, `itemCount()`, `selectedIndex()`, `read()`, `shouldContain()`, `shouldHaveSelectedIndex()` |
+| `table` | `Table` | `selectRow()`, `doubleClickRow()`, `rowCount()`, `cell()`, `selectedRow()`, `read()`, `find()`, and the checks below |
+| `tree` | `Tree` | `select()`, `expand()`, `collapse()`, `selectedPath()`, `read()` |
+| `tabs` | `Tabs` | `select()` |
+| `frame`, `dialog`, `internalFrame`, `group` | `Container` | every method of this table, limited to its inside; `answer()`, `shouldShow()` |
+| `field`, `locator` | `AnyComponent` | `fill()`, `select()`, `value()`, `isChecked()`, `read()`, `shouldHaveValue()`, `shouldBeChecked()` |
+
+The common checks are `exists()`, `isEnabled()`, `shouldExist()`, `shouldNotExist()`, `shouldBeEnabled()`
+and `shouldBeDisabled()`.
 
 **The whole name, or a pattern.** A `String` must be the whole name. A `java.util.regex.Pattern` must be
 found somewhere in it:
@@ -123,6 +177,8 @@ app.textField("Full Name").fill("Ali");     // also append(...), fillAndSubmit(.
 app.checkBox("Active customer").check();    // also uncheck()
 app.comboBox("City").select("İzmir");
 app.tabs().select("Orders");
+app.list().select("SP-1002 Mehmet Demir");  // an item by its text
+app.spinner("Quantity").fillAndSubmit("5"); // a spinner takes typed text over on Enter
 app.table().selectRow("Ali Veli");          // a row by the text of one of its cells
 app.tree().select("Europe/Turkey/Ankara");  // also expand(...), collapse(...)
 app.selectMenu("File > Export > PDF");
@@ -139,7 +195,7 @@ app.chooseFile(new File("data/customers.csv"));
 ```
 
 `ok`, `yes`, `no` and `cancel` work in any language of the user interface; a button's own text works too.
-These methods return what the dialog said.
+These methods return what the dialog said (its title and message, as text), so a test can check it.
 
 ## Checking things
 
@@ -154,14 +210,21 @@ app.checkBox("Active customer").shouldBeChecked();
 app.textField("Full Name").shouldHaveValue("");
 app.comboBox("City").shouldHaveValue("İzmir");
 app.table().shouldHaveRowCount(4);
-app.table().shouldHaveCell(3, "City", "İzmir");   // row 3, the column with the header "City"
+app.table().shouldHaveCell(3, "City", "İzmir");   // the fourth row, the column with the header "City"
 app.table().shouldContain("Ali Veli");
 app.dialog("About").shouldShow("Version 3.2");
 app.shouldShow("Ready");                          // anywhere on screen
 ```
 
+Rows and columns count from 0, as in a snapshot. `shouldShow` and `shouldContain` look for the text as a
+part of what is shown; the other checks compare the whole value.
+
+A check that can never become true still waits for the whole timeout before it fails. That is the price
+of not needing sleeps; lower `app.timeout(ms)` if failing fast matters more.
+
 To compare yourself, read the value: `value()`, `isChecked()`, `isEnabled()`, `exists()`, `rowCount()`,
-`cell(row, column)`, `selectedRow()`.
+`cell(row, column)`, `selectedRow()`. These do not wait for a value to change, only for the component to
+be on screen. The value of a text area with several lines has real line breaks in it.
 
 `app.screenshotsOnFailure(new File("target/screenshots"))` saves a picture of the application whenever a
 step or check fails; the error says where.

@@ -35,6 +35,30 @@ public final class AnyComponent extends Locator {
         return require().has("checked");
     }
 
+    public void shouldHaveValue(final String expected) {
+        should("have the value \"" + expected + "\"", new Check() {
+            public boolean ok(State state) {
+                return state != null && expected.equals(state.quoted("value"));
+            }
+        });
+    }
+
+    public void shouldBeChecked() {
+        should("be checked", new Check() {
+            public boolean ok(State state) {
+                return state != null && state.has("checked");
+            }
+        });
+    }
+
+    public void shouldBeUnchecked() {
+        should("be unchecked", new Check() {
+            public boolean ok(State state) {
+                return state != null && state.has("unchecked");
+            }
+        });
+    }
+
     /** The contents of a table, list, tree or combo box, one row per line. */
     public String read() {
         return app.get("/read", target());

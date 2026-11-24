@@ -18,7 +18,8 @@ AI tool ──MCP (stdio)──▶ MCP server (Java 8+) ──localhost HTTP + t
 | Module | Java | Role |
 |---|---|---|
 | `agent` | 8, no dependencies | Runs inside the application: snapshot, screenshot, actions, Spring lookup, hot reload |
-| `mcp` | 8, no dependencies | MCP server. Carries the agent jar; starts applications or attaches to them |
+| `test-library` | 8, no dependencies | Tests in Java that use an application through the agent, without MCP. Carries the agent jar and the code that starts and talks to applications |
+| `mcp` | 8, no dependencies | MCP server. Its jar includes the connection code and the agent jar; starts applications or attaches to them |
 | `maven-plugin` | 8 | The only part a user adds to a project: `swing2mcp:setup` and `swing2mcp:run` |
 | `demo-app`, `demo-spring` | 8 | Legacy-style test applications, without and with Spring. They know nothing about swing2mcp |
 
@@ -126,6 +127,20 @@ Attach API. It has nothing to do with an AI agent.
 - `mode=os` (keys and drags) first proves the window is in front: it moves the pointer over the target and
   requires that move to arrive in the application, otherwise nothing is pressed. Java can report a
   window as focused while the operating system keeps another program in front.
+
+### Tests without an AI tool
+
+- The agent's HTTP interface is the core; MCP is one front end to it and the test library is another. A
+  test talks to the agent directly, so a build server needs neither an MCP server nor a model.
+- A ref lives for one run of the application, so tests name components by locator: role and name as the
+  snapshot shows them, the Java field, or what the component is inside. The agent resolves locators with
+  the snapshot's own code, so a test and an AI tool can never disagree about what a component is called.
+- A locator must match exactly one component. Nothing matching is waited for; several matching is an
+  error at once that lists them.
+- The test API has one method per kind of component and returns a type that only offers what that kind
+  can do, so a misspelled kind or a meaningless action does not compile.
+- The test library's jar contains no MCP code and cannot load the agent into a running process; it only
+  starts applications with the agent or connects to ones that have it.
 
 ### Spring
 

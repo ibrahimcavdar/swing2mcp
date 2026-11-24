@@ -30,6 +30,14 @@ public final class ItemList extends Locator {
         return app.get("/read", target());
     }
 
+    public void shouldHaveSelectedIndex(final int expected) {
+        should("have item " + expected + " selected", new Check() {
+            public boolean ok(State state) {
+                return state != null && state.firstOf("selected") == expected;
+            }
+        });
+    }
+
     public void shouldContain(final String text) {
         should("contain \"" + text + "\"", new Check() {
             public boolean ok(State state) {

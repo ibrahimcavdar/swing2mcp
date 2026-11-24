@@ -18,7 +18,8 @@ To try the result, go to `demo-app` or `demo-spring` and run `mvn swing2mcp:setu
 | Module | Java | Role |
 |---|---|---|
 | `agent` | 8 | Runs inside the application's JVM |
-| `mcp` | 8 | MCP server, no dependencies; embeds the agent jar |
+| `test-library` | 8 | Test library (`swing2mcp-test`), no dependencies; also the code that finds, starts and talks to applications, and the embedded agent jar |
+| `mcp` | 8 | MCP server, no dependencies; the build copies the connection code and the agent jar from `test-library` into its jar |
 | `maven-plugin` | 8 | `swing2mcp:setup`, `swing2mcp:run`, `swing2mcp:uninstall` |
 | `demo-app`, `demo-spring` | 8 | Test applications; they must not know about swing2mcp |
 | `e2e-tests` | 17 | End-to-end tests; not installed or published |
@@ -27,7 +28,7 @@ Why it is built this way: [docs/design.md](docs/design.md).
 
 ## Rules
 
-- `agent`, `mcp` and `maven-plugin` must stay Java 8 compatible (`maven.compiler.release=8`). Building
+- `agent`, `test-library`, `mcp` and `maven-plugin` must stay Java 8 compatible (`maven.compiler.release=8`). Building
   the project itself needs JDK 17 or newer, because of the tests.
 - `agent` has no dependencies and never references Spring or any other library at compile time. It uses
   only public Swing/AWT API; libraries of the application are reached by reflection.

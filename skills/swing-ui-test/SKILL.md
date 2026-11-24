@@ -16,8 +16,8 @@ A snapshot line `button "Save" [ref=e24] field=btnSave` becomes `app.button("Sav
 
 ## Steps
 
-1. **Check the project.** The test dependency must be there; add it if it is not, with the same version
-   as the swing2mcp plugin in the pom:
+1. **Check the project.** The test dependency must be there; add it if it is not. Use the version of the
+   swing2mcp plugin in the pom if there is one, otherwise the newest release:
 
    ```xml
    <dependency>
@@ -37,12 +37,34 @@ A snapshot line `button "Save" [ref=e24] field=btnSave` becomes `app.button("Sav
 3. **Write the test** from your notes, one line per step and one check per proof:
 
    ```java
-   try (SwingApp app = SwingApp.launch(Main.class)) {
-       app.textField("Full Name").fill("Ali Veli");
-       app.button("Save").click();
-       app.label("Customer saved: Ali Veli").shouldExist();
+   import io.github.ibrahimcavdar.swing2mcp.test.SwingApp;
+
+   class CustomerTest {
+       private SwingApp app;
+
+       @BeforeEach
+       void startAndLogIn() {
+           app = SwingApp.launch(Main.class);   // or launchCommand("java -jar app.jar")
+           app.textField("User name").fill("admin");
+           app.passwordField("Password").fill("admin");
+           app.button("Log In").click();
+       }
+
+       @AfterEach
+       void stop() {
+           app.close();
+       }
+
+       @Test
+       void addsACustomer() {
+           app.textField("Full Name").fill("Ali Veli");
+           app.button("Save").click();
+           app.label("Customer saved: Ali Veli").shouldExist();
+       }
    }
    ```
+
+   The first step after starting waits for the application to come up; do not add a wait for it.
 
 4. **Run it against the open application** while you are still changing it. This takes seconds and
    leaves the application open:

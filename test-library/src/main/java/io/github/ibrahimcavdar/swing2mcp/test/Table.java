@@ -76,7 +76,15 @@ public final class Table extends Locator {
                 }
             });
         } catch (AssertionError e) {
-            throw last[0] == null ? e : new AssertionError(e.getMessage() + "\nThat cell shows \"" + last[0] + "\".");
+            if (last[0] == null) {
+                throw e;
+            }
+            // what the cell shows instead goes right under the expectation, before the table
+            String message = e.getMessage();
+            int firstBreak = message.indexOf('\n');
+            String shows = "\nThat cell shows \"" + last[0] + "\".";
+            throw new AssertionError(firstBreak < 0 ? message + shows
+                    : message.substring(0, firstBreak) + shows + message.substring(firstBreak));
         }
     }
 
