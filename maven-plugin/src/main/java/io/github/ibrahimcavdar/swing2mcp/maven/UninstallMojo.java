@@ -20,9 +20,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Undoes {@code swing2mcp:setup}: removes the server's entry from the settings of the AI tools, for the
- * user and in this project, and deletes the {@code ~/.swing2mcp} directory. Other entries in those
- * settings are kept. The plugin line in the pom is the only thing left to remove by hand.
+ * Undoes {@code swing2mcp:setup}: removes the server's entry from the settings of the AI tools and the
+ * skill from their skills folders, for the user and in this project, and deletes the {@code ~/.swing2mcp}
+ * directory. Other entries in those settings are kept. The plugin line in the pom is the only thing left to remove by hand.
  *
  * <pre>
  *   mvn swing2mcp:uninstall
@@ -70,6 +70,11 @@ public class UninstallMojo extends AbstractMojo {
             jsonEntry(plan, "OpenCode", new File(basedir, "opencode.json"), "mcp");
             tomlTable(plan, new File(userHome, ".codex/config.toml"));
             tomlTable(plan, new File(basedir, ".codex/config.toml"));
+            String[] tools = {"claude", "Claude Code", "cursor", "Cursor", "codex", "Codex", "opencode", "OpenCode"};
+            for (int i = 0; i < tools.length; i += 2) {
+                skill(plan, tools[i + 1], SetupMojo.skillsDir(tools[i], false, basedir, userHome));
+                skill(plan, tools[i + 1], SetupMojo.skillsDir(tools[i], true, basedir, userHome));
+            }
         } catch (IOException e) {
             throw new MojoExecutionException("Cannot read the settings of an AI tool", e);
         }
@@ -168,6 +173,26 @@ public class UninstallMojo extends AbstractMojo {
                     Files.write(file.toPath(), (gson.toJson(root) + "\n").getBytes(StandardCharsets.UTF_8));
                     getLog().info("swing2mcp: removed '" + serverName + "' from " + file);
                 }
+            }
+        });
+    }
+
+    /** Plans the removal of the skill that setup copied into a tool's skills folder, if it is there. */
+    private void skill(List<Step> plan, String tool, File skillsDir) throws IOException {
+        final File dir = new File(skillsDir, SetupMojo.SKILL);
+        final File file = new File(dir, "SKILL.md");
+        if (!file.isFile()
+                || !new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).contains("swing2mcp")) {
+            return;
+        }
+        plan.add(new Step(tool + ": delete the " + SetupMojo.SKILL + " skill at " + dir) {
+            void run() throws IOException {
+                Files.delete(file.toPath());
+                // Folders that setup made for it go too, as far as they are empty now.
+                removeIfEmpty(dir);
+                removeIfEmpty(dir.getParentFile());
+                removeIfEmpty(dir.getParentFile().getParentFile());
+                getLog().info("swing2mcp: deleted the skill at " + dir);
             }
         });
     }

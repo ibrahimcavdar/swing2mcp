@@ -243,7 +243,8 @@ open next to it; if your application cannot run twice (it locks a file or a port
 close its copy before it runs the test.
 
 [skills/swing-ui-test/SKILL.md](../skills/swing-ui-test/SKILL.md) holds these instructions in a form an AI
-tool can follow.
+tool can follow. `mvn swing2mcp:setup` asks whether to add this skill to the AI tools it connects; then
+"write a test for adding a customer" is enough.
 
 ## Running on a build server
 

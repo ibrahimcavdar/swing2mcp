@@ -148,7 +148,8 @@ key and connects to nothing outside your machine.
 
 `setup` also takes its answers as options, for scripts: `-Dswing2mcp.clients=claude,cursor` names the
 tools, and `-Dswing2mcp.scope=project` writes the settings into the project folder instead of your user
-settings (those files then hold paths of your machine, so do not commit them).
+settings (those files then hold paths of your machine, so do not commit them). `-Dswing2mcp.skill=true`
+also adds the skill for [writing tests](testing.md) to the named tools.
 
 ## How actions behave
 

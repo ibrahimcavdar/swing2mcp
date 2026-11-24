@@ -36,6 +36,8 @@ mvn swing2mcp:setup
 - [ ] It also works with Maven running on Java 8.
 - [ ] `mvn swing2mcp:uninstall` lists what it will remove, asks, and afterwards the entries and the
   `.swing2mcp` folder are gone while other entries in those settings are kept. Run `setup` again to go on.
+- [ ] `setup` asks about the `swing-ui-test` skill after the tools; with yes, each chosen tool has
+  `swing-ui-test/SKILL.md` in its skills folder, and `uninstall` removes it and leaves other skills alone.
 
 Open the AI tool in the `demo-app` folder.
 

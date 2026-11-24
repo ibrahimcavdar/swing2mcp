@@ -18,6 +18,9 @@ between releases.
   agent, without MCP or an AI tool, for example
   `app.textField("Full Name").fill("Ali"); app.button("Save").click();`. Its jar contains no MCP code.
   Names may change.
+- `swing2mcp:setup` can also give the chosen AI tools a skill, `swing-ui-test`, that tells them how to
+  write such a test after walking through a scenario; it asks, or takes `-Dswing2mcp.skill=true`.
+  `swing2mcp:uninstall` removes it.
 
 ### Changed
 

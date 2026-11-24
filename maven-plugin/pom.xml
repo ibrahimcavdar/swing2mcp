@@ -69,6 +69,13 @@
   </dependencies>
 
   <build>
+    <resources>
+      <!-- The skills that setup can install for the AI tools; one source, at the top of the repository. -->
+      <resource>
+        <directory>${project.basedir}/../skills</directory>
+        <targetPath>swing2mcp/skills</targetPath>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

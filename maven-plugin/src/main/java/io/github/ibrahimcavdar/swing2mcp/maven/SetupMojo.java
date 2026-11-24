@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
  * <pre>
  *   mvn swing2mcp:setup                                  asks which tools, shows the changes, then makes them
  *   mvn swing2mcp:setup -Dswing2mcp.clients=claude       no questions (also for -B and scripts)
+ *   mvn swing2mcp:setup -Dswing2mcp.clients=claude -Dswing2mcp.skill=true    also the skill for writing UI tests
  *   mvn swing2mcp:setup -Dswing2mcp.scope=project        settings files in this project instead of the user's
  *   mvn swing2mcp:setup -Dswing2mcp.mcpJavaHome=/path/to/jdk     run the MCP server with another Java
  * </pre>
@@ -94,6 +95,13 @@ public class SetupMojo extends AbstractMojo {
     @Parameter(property = "swing2mcp.serverName", defaultValue = "swing")
     private String serverName;
 
+    /**
+     * Whether to also give the chosen tools the skill that teaches them to write a repeatable UI test
+     * with the test library. Without it, setup asks; with named tools or {@code -B} the default is no.
+     */
+    @Parameter(property = "swing2mcp.skill")
+    private Boolean skill;
+
     /** The user's home directory; only changed by tests. */
     @Parameter(property = "swing2mcp.userHome", defaultValue = "${user.home}")
     private File userHome;
@@ -127,6 +135,20 @@ public class SetupMojo extends AbstractMojo {
         if (selected != null) {
             for (String client : selected) {
                 plan.add(step(client, projectScope, java, server));
+            }
+            boolean withSkill = skill != null ? skill.booleanValue()
+                    : !named && interactive && !selected.isEmpty() && askSkill();
+            if (withSkill) {
+                for (final String client : selected) {
+                    final File file = new File(skillsDir(client, projectScope, basedir, userHome),
+                            SKILL + File.separator + "SKILL.md");
+                    plan.add(new Step(CLIENT_NAMES.get(CLIENTS.indexOf(client)) + ": copy the " + SKILL
+                            + " skill to " + file) {
+                        void run() throws IOException {
+                            installSkill(file);
+                        }
+                    });
+                }
             }
         }
 
@@ -237,12 +259,60 @@ public class SetupMojo extends AbstractMojo {
     private boolean confirm() {
         System.out.print("Go ahead? [Y/n]: ");
         System.out.flush();
-        String answer = readLine();
+        return yes(readLine());
+    }
+
+    private boolean askSkill() {
+        System.out.println();
+        System.out.println("swing2mcp: should they also learn to write UI tests (experimental)? The skill \"" + SKILL
+                + "\" tells the AI tool");
+        System.out.println("how to write a scenario it walked through in your application down as a plain Java "
+                + "test that runs without AI.");
+        System.out.print("Add the skill? [Y/n]: ");
+        System.out.flush();
+        return yes(readLine());
+    }
+
+    private static boolean yes(String answer) {
         if (answer == null) {
             return false;
         }
         answer = answer.trim().toLowerCase(Locale.ROOT);
         return answer.length() == 0 || answer.equals("y") || answer.equals("yes");
+    }
+
+    // ---------------------------------------------------------------- the skill
+
+    static final String SKILL = "swing-ui-test";
+
+    /**
+     * Where a tool looks for skills (folders with a SKILL.md), for the user or in a project. Each tool
+     * gets the folder its own documentation names first; Cursor and OpenCode also read the folders of
+     * Claude Code and Codex, which does no harm.
+     */
+    static File skillsDir(String client, boolean projectScope, File basedir, File userHome) {
+        File root = projectScope ? basedir : userHome;
+        if ("claude".equals(client)) {
+            return new File(root, ".claude/skills");
+        }
+        if ("cursor".equals(client)) {
+            return new File(root, ".cursor/skills");
+        }
+        if ("codex".equals(client)) {
+            return new File(root, ".agents/skills");
+        }
+        return new File(root, projectScope ? ".opencode/skills" : ".config/opencode/skills");
+    }
+
+    private void installSkill(File file) throws IOException {
+        file.getAbsoluteFile().getParentFile().mkdirs();
+        try (InputStream in = SetupMojo.class.getResourceAsStream("/swing2mcp/skills/" + SKILL + "/SKILL.md")) {
+            if (in == null) {
+                throw new IOException("the skill is missing from the plugin");
+            }
+            Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+        getLog().info("swing2mcp: skill installed at " + file);
     }
 
     private BufferedReader stdin;
