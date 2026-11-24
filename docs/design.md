@@ -140,7 +140,7 @@ Attach API. It has nothing to do with an AI agent.
 - The test API has one method per kind of component and returns a type that only offers what that kind
   can do, so a misspelled kind or a meaningless action does not compile.
 - The test library's jar contains no MCP code and cannot load the agent into a running process; it only
-  starts applications with the agent or connects to ones that have it.
+  starts applications with the agent. Looking at an open application is the MCP server's job.
 
 ### Spring
 

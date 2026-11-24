@@ -31,8 +31,11 @@ A snapshot line `button "Save" [ref=e24] field=btnSave` becomes `app.button("Sav
    Use the test framework and the folder the project already uses for tests.
 
 2. **Walk through the scenario with the MCP tools.** Connect to the open application or start it, then
-   do each step once by hand. After every step read the result: note the role and name of each
-   component you used, and what on screen proves that the step worked (a label, a table row, a dialog).
+   do each step once by hand. Name the component the way the test will, not by its ref: the tools take
+   a locator wherever they take a ref, written like the snapshot line (`button "Save"`,
+   `field=btnSave`, `dialog "Confirm" > button "OK"`). A locator that worked here works in the test.
+   After every step read the result and note what on screen proves that the step worked (a label, a
+   table row, a dialog).
 
 3. **Write the test** from your notes, one line per step and one check per proof:
 
@@ -66,18 +69,15 @@ A snapshot line `button "Save" [ref=e24] field=btnSave` becomes `app.button("Sav
 
    The first step after starting waits for the application to come up; do not add a wait for it.
 
-4. **Run it against the open application** while you are still changing it. This takes seconds and
-   leaves the application open:
+4. **Run the test.** It starts its own copy of the application and closes it at the end:
 
    ```
-   mvn test -Dtest=CustomerTest -Dswing2mcp.connect=running
+   mvn test -Dtest=CustomerTest
    ```
 
-   The test meets the application as it is now. If it is already logged in, the login steps of the test
-   will fail: bring the application to the state the test expects first (log out, or restart it).
-
-5. **Finish with one run from scratch**, without `-Dswing2mcp.connect`. Only this run counts: the test
-   must pass on a freshly started application.
+   Leave the copy you explored open, so that you can compare when a step fails. Only if the application
+   cannot run twice (it locks a file or a port, or allows one instance), close yours first with
+   `stop_app`.
 
 ## Choosing how to find a component
 

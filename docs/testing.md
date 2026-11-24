@@ -53,10 +53,9 @@ and a check that does not hold both throw an `AssertionError`.
 |---|---|
 | `SwingApp.launch(Main.class, "arg")` | Starts the main class in a process of its own, with the Java and the class path that run the tests. |
 | `SwingApp.launchCommand("bin/start.bat")` | Starts it with a command line, for applications started by a script or with their own Java. |
-| `SwingApp.connect(pid)` | Uses an application that already runs with the agent (started with `mvn swing2mcp:run`, or connected by the AI tool). |
 
-`close()` ends an application the test started and leaves one it connected to running. The application
-always runs in its own process: it can call `System.exit` without taking the tests with it.
+`close()` ends the application. It always runs in its own process: it can call `System.exit` without
+taking the tests with it, and a test can start more than one.
 
 `launchCommand` takes one string, as you would type it into a shell (`"java -jar C:/apps/demo.jar"`), and
 runs it in the current directory, or in the directory given as a second argument. Put quotes around a
@@ -235,17 +234,13 @@ The AI tool sees the application through the snapshot, and the snapshot uses the
 library: `button "Save"` in a snapshot is `app.button("Save")` in a test. So a good way to get a test is
 to ask the AI tool to walk through a scenario in the running application and then write down what it did.
 
-Starting the application for every attempt is slow. While a test is being written, run it against the
-application that is already open:
+The AI tools also take a locator wherever they take a ref: `click` with `button "Save"` or
+`field=btnSave` instead of `e24`. An AI tool that walks through the scenario this way has tried every
+locator of the test in the real application before the test runs for the first time.
 
-```
-mvn test -Dtest=CustomerTest -Dswing2mcp.connect=running
-```
-
-With this property (or the environment variable `SWING2MCP_CONNECT`), `launch` and `launchCommand` use the
-running application instead of starting a new one, and `close()` leaves it open. Give a pid instead of
-`running` when several applications run with the agent. The test then meets the application as it is at
-that moment (already logged in, for example), so finish by running it once without the property.
+The test itself always starts its own copy of the application. The copy the AI tool is looking at stays
+open next to it; if your application cannot run twice (it locks a file or a port), the AI tool has to
+close its copy before it runs the test.
 
 [skills/swing-ui-test/SKILL.md](../skills/swing-ui-test/SKILL.md) holds these instructions in a form an AI
 tool can follow.

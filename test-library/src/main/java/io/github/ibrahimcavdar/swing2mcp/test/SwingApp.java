@@ -40,14 +40,12 @@ public final class SwingApp extends Scope implements AutoCloseable {
 
     private final Apps apps;
     private final AgentClient client;
-    private final boolean launched;
     private long timeoutMs = 10000;
     private File screenshots;
 
-    private SwingApp(Apps apps, AgentClient client, boolean launched) {
+    private SwingApp(Apps apps, AgentClient client) {
         this.apps = apps;
         this.client = client;
-        this.launched = launched;
     }
 
     /**
@@ -83,41 +81,7 @@ public final class SwingApp extends Scope implements AutoCloseable {
         return start(null, command, null);
     }
 
-    /**
-     * While a test is being written, starting the application for every run is slow. With the system
-     * property {@code swing2mcp.connect} (or the environment variable {@code SWING2MCP_CONNECT}) set to the
-     * pid of an application that runs with the agent, or to {@code running} for the only such
-     * application, the launch methods connect to it instead, and {@link #close()} leaves it running.
-     */
-    private static SwingApp running() {
-        String wanted = System.getProperty("swing2mcp.connect", System.getenv("SWING2MCP_CONNECT"));
-        if (wanted == null || wanted.trim().isEmpty()) {
-            return null;
-        }
-        wanted = wanted.trim();
-        if (!wanted.equals("running")) {
-            try {
-                return connect(Long.parseLong(wanted));
-            } catch (NumberFormatException e) {
-                throw new IllegalStateException("swing2mcp.connect must be a pid or \"running\", not " + wanted);
-            }
-        }
-        Apps apps = Apps.ofUser();
-        try {
-            return new SwingApp(apps, apps.current(), false);
-        } catch (IOException e) {
-            throw new IllegalStateException("swing2mcp.connect=running, but " + e.getMessage()
-                    .replace("Use list_apps, then connect_app with a pid, or start one with launch_app.",
-                            "Start the application with the agent first, e.g. with mvn swing2mcp:run.")
-                    .replace("Choose one with connect_app.", "Give the pid instead: swing2mcp.connect=<pid>."), e);
-        }
-    }
-
     private static SwingApp start(List<String> program, String command, File workingDirectory) {
-        SwingApp running = running();
-        if (running != null) {
-            return running;
-        }
         Apps apps = Apps.ofUser();
         Path cwd = workingDirectory == null ? null : workingDirectory.toPath();
         try {
@@ -126,29 +90,12 @@ public final class SwingApp extends Scope implements AutoCloseable {
             } else {
                 apps.launch(command, cwd, START_TIMEOUT);
             }
-            return new SwingApp(apps, apps.current(), true);
+            return new SwingApp(apps, apps.current());
         } catch (IOException e) {
             throw new IllegalStateException("The application could not be started: " + e.getMessage(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while starting the application", e);
-        }
-    }
-
-    /**
-     * Connects to an application that is running with the agent already, e.g. one started with
-     * {@code mvn swing2mcp:run}. {@link #close()} leaves it running.
-     */
-    public static SwingApp connect(long pid) {
-        Apps apps = Apps.ofUser();
-        try {
-            if (apps.find(pid) == null) {
-                throw new IllegalStateException("No application with the swing2mcp agent has the pid " + pid
-                        + ". Start it with SwingApp.launch, or with mvn swing2mcp:run.");
-            }
-            return new SwingApp(apps, apps.connect(pid), false);
-        } catch (IOException e) {
-            throw new IllegalStateException("Could not connect to pid " + pid + ": " + e.getMessage(), e);
         }
     }
 
@@ -250,15 +197,13 @@ public final class SwingApp extends Scope implements AutoCloseable {
         return post("/dialog", params);
     }
 
-    /** Ends the application if this test started it. */
+    /** Ends the application. */
     @Override
     public void close() {
-        if (launched) {
-            try {
-                apps.stop(client.pid);
-            } catch (IOException e) {
-                // it has ended already
-            }
+        try {
+            apps.stop(client.pid);
+        } catch (IOException e) {
+            // it has ended already
         }
     }
 
