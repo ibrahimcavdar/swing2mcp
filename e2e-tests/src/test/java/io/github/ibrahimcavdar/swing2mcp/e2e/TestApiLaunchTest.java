@@ -1,6 +1,7 @@
 package io.github.ibrahimcavdar.swing2mcp.e2e;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.acme.legacy.DemoApp;
@@ -26,6 +27,28 @@ class TestApiLaunchTest {
             assertTrue(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false));
         }
         assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false), "close() must end it");
+    }
+
+    @Test
+    void tellsWhenTheApplicationEndsByItself() {
+        try (SwingApp app = SwingApp.launch(DemoApp.class).timeout(30000)) {
+            app.textField("User name").fill("admin");
+            app.passwordField("Password").fill("admin");
+            app.button("Log In").click();
+
+            app.selectMenu("File > Exit");
+            app.dialog("Exit").answer("no");
+            app.dialog("Exit").shouldNotExist();
+            assertTrue(app.isRunning());
+            AssertionError stillThere = assertThrows(AssertionError.class,
+                    () -> app.timeout(1000).shouldHaveExited());
+            assertTrue(stillThere.getMessage().contains("still running"), stillThere.getMessage());
+
+            app.timeout(30000).selectMenu("File > Exit");
+            app.dialog("Exit").answer("yes");
+            app.shouldHaveExited();
+            assertFalse(app.isRunning());
+        }
     }
 
     @Test

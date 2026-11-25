@@ -55,7 +55,8 @@ and a check that does not hold both throw an `AssertionError`.
 | `SwingApp.launchCommand("bin/start.bat")` | Starts it with a command line, for applications started by a script or with their own Java. |
 
 `close()` ends the application. It always runs in its own process: it can call `System.exit` without
-taking the tests with it, and a test can start more than one.
+taking the tests with it, and a test can start more than one. To test the application's own way out,
+`app.shouldHaveExited()` waits until it has ended, and `app.isRunning()` tells whether it still runs.
 
 `launchCommand` takes one string, as you would type it into a shell (`"java -jar C:/apps/demo.jar"`), and
 runs it in the current directory, or in the directory given as a second argument. Put quotes around a

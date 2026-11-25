@@ -123,6 +123,27 @@ public final class SwingApp extends Scope implements AutoCloseable {
 
     // ---------------------------------------------------------------- the application as a whole
 
+    /** Whether the application is still running. */
+    public boolean isRunning() {
+        return Processes.isAlive(client.pid, client.port);
+    }
+
+    /** Waits until the application has ended, for a test of its own way out (an Exit menu, a last window). */
+    public void shouldHaveExited() {
+        if (!Processes.waitForExit(client.pid, client.port, timeoutMs)) {
+            throw new AssertionError("The application should have ended, but after " + timeoutMs
+                    + " ms it is still running.\n" + snapshotOrNothing());
+        }
+    }
+
+    private String snapshotOrNothing() {
+        try {
+            return snapshot();
+        } catch (RuntimeException | AssertionError e) {
+            return "";
+        }
+    }
+
     /** Everything on screen as text: each window as an outline of its components. */
     public String snapshot() {
         return get("/snapshot", new LinkedHashMap<String, Object>());
