@@ -93,7 +93,8 @@ class TestApiTest {
         assertEquals("Ali Veli", app.table().cell(3, "Full Name"));
         assertEquals("Ali Veli", app.table().cell(3, 1));
         app.table().shouldHaveCell(3, "City", "İzmir");
-        assertEquals(-1, app.table().selectedRow());
+        app.table().shouldHaveCell(3, 1, "Ali Veli");
+        assertEquals(-1,app.table().selectedRow());
         app.table().selectRow("Mehmet Demir");
         app.table().shouldHaveSelectedRow(1);
         assertFalse(app.dialog("Login").exists());

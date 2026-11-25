@@ -63,6 +63,7 @@ A snapshot line `button "Save" [ref=e24] field=btnSave` becomes `app.button("Sav
            app.textField("Full Name").fill("Ali Veli");
            app.button("Save").click();
            app.label("Customer saved: Ali Veli").shouldExist();
+           app.table().shouldHaveCell(3, "Full Name", "Ali Veli");   // row from 0, column by its header
        }
    }
    ```

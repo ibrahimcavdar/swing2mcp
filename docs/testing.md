@@ -210,6 +210,7 @@ app.textField("Full Name").shouldHaveValue("");
 app.comboBox("City").shouldHaveValue("İzmir");
 app.table().shouldHaveRowCount(4);
 app.table().shouldHaveCell(3, "City", "İzmir");   // the fourth row, the column with the header "City"
+app.table().shouldHaveCell(3, 3, "İzmir");        // or the column by its position
 app.table().shouldContain("Ali Veli");
 app.dialog("About").shouldShow("Version 3.2");
 app.shouldShow("Ready");                          // anywhere on screen

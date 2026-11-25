@@ -62,10 +62,20 @@ public final class Table extends Locator {
         return require().firstOf("selected");
     }
 
-    public void shouldHaveCell(final int row, final String column, final String expected) {
+    /** Waits until the cell shows the text. Rows count from 0; the column is its header text. */
+    public void shouldHaveCell(int row, String column, String expected) {
+        shouldHaveCellAt(row, column, "column \"" + column + "\"", expected);
+    }
+
+    /** Waits until the cell shows the text. Rows and columns count from 0. */
+    public void shouldHaveCell(int row, int column, String expected) {
+        shouldHaveCellAt(row, column, "column " + column, expected);
+    }
+
+    private void shouldHaveCellAt(final int row, final Object column, String columnText, final String expected) {
         final String[] last = {null};
         try {
-            should("show \"" + expected + "\" in row " + row + ", column \"" + column + "\"", new Check() {
+            should("show \"" + expected + "\" in row " + row + ", " + columnText, new Check() {
                 public boolean ok(State state) {
                     if (state == null || state.number("rows") <= row) {
                         last[0] = null;
