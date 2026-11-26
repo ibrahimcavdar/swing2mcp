@@ -332,12 +332,34 @@ final class AgentServer {
             throw new IllegalArgumentException("locate takes a locator such as button \"Save\", not a ref");
         }
         final String locator = target.trim();
+        final String[] value = new String[1];
         Locators.Found found = Actions.whenUsable(params, new StringBuilder(), new Callable<Locators.Found>() {
             public Locators.Found call() {
-                return locators.find(locator);
+                Locators.Found f = locators.find(locator);
+                value[0] = exactText(f.component);
+                return f;
             }
         });
-        return "ref=" + refs.refFor(found.component) + "\n" + found.text;
+        return "ref=" + refs.refFor(found.component)
+                + (value[0] == null ? "" : " value=" + java.net.URLEncoder.encode(value[0], "UTF-8"))
+                + "\n" + found.text;
+    }
+
+    /**
+     * The whole text of a text component, for a caller that compares it: the snapshot shortens a long
+     * value and writes a line break as \n, which cannot be told from a backslash and an n. Null for
+     * other components and for password fields.
+     */
+    private static String exactText(Component c) {
+        if (!(c instanceof javax.swing.text.JTextComponent) || c instanceof javax.swing.JPasswordField) {
+            return null;
+        }
+        javax.swing.text.JTextComponent text = (javax.swing.text.JTextComponent) c;
+        try {
+            return text.getDocument().getText(0, text.getDocument().getLength());
+        } catch (Exception e) {
+            return text.getText();
+        }
     }
 
     private byte[] screenshot(Map<String, String> params) throws Exception {

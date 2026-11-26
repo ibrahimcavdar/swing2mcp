@@ -36,6 +36,6 @@ public final class Tree extends Locator {
 
     /** The visible rows, one per line. */
     public String read() {
-        return app.get("/read", target());
+        return app.get("/read", allRows());
     }
 }

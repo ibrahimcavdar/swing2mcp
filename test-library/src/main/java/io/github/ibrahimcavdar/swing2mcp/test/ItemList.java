@@ -27,7 +27,7 @@ public final class ItemList extends Locator {
 
     /** All items, one per line, as the user sees them. */
     public String read() {
-        return app.get("/read", target());
+        return app.get("/read", allRows());
     }
 
     public void shouldHaveSelectedIndex(final int expected) {

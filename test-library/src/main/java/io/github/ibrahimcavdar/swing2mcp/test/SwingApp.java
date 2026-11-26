@@ -131,7 +131,7 @@ public final class SwingApp extends Scope implements AutoCloseable {
     /** Waits until the application has ended, for a test of its own way out (an Exit menu, a last window). */
     public void shouldHaveExited() {
         if (!Processes.waitForExit(client.pid, client.port, timeoutMs)) {
-            throw new AssertionError("The application should have ended, but after " + timeoutMs
+            throw failure("The application should have ended, but after " + timeoutMs
                     + " ms it is still running.\n" + snapshotOrNothing());
         }
     }
@@ -272,8 +272,15 @@ public final class SwingApp extends Scope implements AutoCloseable {
         return Duration.ofMillis(wait + 30000 + 100L * (text == null ? 0 : text.toString().length()));
     }
 
-    /** An action that ends the application (a click on "Exit") is not a failure: its answer says so. */
+    /**
+     * An action that ends the application (a click on "Exit") is not a failure: its answer says so. An
+     * action on an application that has ended before is one.
+     */
     String post(String path, Map<String, Object> params) {
+        if (!isRunning()) {
+            throw new AssertionError("The application (pid " + client.pid + ") is not running any more: it ended "
+                    + "before this step.");
+        }
         try {
             return client.post(path, params, httpTimeout(params));
         } catch (AgentClient.AppExited e) {

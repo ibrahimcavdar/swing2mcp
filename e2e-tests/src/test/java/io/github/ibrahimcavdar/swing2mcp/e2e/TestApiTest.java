@@ -100,6 +100,20 @@ class TestApiTest {
         app.table().selectRow("Mehmet Demir");
         app.table().shouldHaveSelectedRow(1);
         assertFalse(app.dialog("Login").exists());
+
+        // A text value is read as it is: a Windows path keeps its backslashes (the snapshot writes a line
+        // break as \n), and a long text is not cut short.
+        String path = "C:\\new\\notes \"2026\".txt";
+        app.textField("Full Name").fill(path);
+        app.textField("Full Name").shouldHaveValue(path);
+        assertEquals(path, app.textField("Full Name").value());
+        StringBuilder longText = new StringBuilder();
+        for (int i = 0; i < 40; i++) {
+            longText.append("0123456789");
+        }
+        app.textField("Full Name").fill(longText.toString());
+        assertEquals(longText.toString(), app.textField("Full Name").value());
+        app.textField("Full Name").fill("");
     }
 
     @Test
@@ -193,6 +207,22 @@ class TestApiTest {
         app.label("Pointer: 200, 100 | pin: 200, 100").shouldExist();
         app.locator("slider \"Zoom\"").hover();
         app.label("Pointer: outside | pin: 200, 100").shouldExist();
+
+        // The mouse acts on a point of the window, as a user's does. The wheel zooms what is under it, a
+        // click on a label inside a panel that is clicked as a whole reaches the panel, and what lies on
+        // top of a component takes the mouse instead of it.
+        app.field("mapCanvas").scrollAt(120, 80, -1);
+        app.label("View center: -60, -40 | zoom 125%").shouldExist();
+        app.label("Click to center the map").click();
+        app.label("View center: 0, 0 | zoom 100%").shouldExist();
+        app.checkBox("Lock map").check();
+        app.timeout(300);
+        AssertionError covered = assertThrows(AssertionError.class, () -> app.field("mapCanvas").clickAt(210, 110));
+        assertTrue(covered.getMessage().contains("is covered by"), covered.getMessage());
+        app.timeout(5000);
+        app.checkBox("Lock map").uncheck();
+        app.field("mapCanvas").clickAt(210, 110);
+        app.label(Pattern.compile("pin: 210, 110")).shouldExist();
     }
 
     @Test

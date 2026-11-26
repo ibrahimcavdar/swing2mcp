@@ -153,7 +153,10 @@ public final class Apps {
      * for {@code java -jar}, start scripts and IDE-generated command lines alike.
      */
     public String launch(String command, Path cwd, Duration timeout) throws IOException, InterruptedException {
-        return launch(Processes.isWindows() ? Arrays.asList("cmd.exe", "/c", command)
+        // cmd.exe drops the first and the last quote of a command that starts with one, which breaks
+        // "C:\Program Files\...\java.exe" -jar "my app.jar". With /s it always drops the outer pair, so the
+        // command gets a pair of its own.
+        return launch(Processes.isWindows() ? Arrays.asList("cmd.exe", "/s", "/c", "\"" + command + "\"")
                 : Arrays.asList("/bin/sh", "-c", command), cwd, timeout);
     }
 

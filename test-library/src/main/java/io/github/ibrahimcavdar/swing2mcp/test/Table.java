@@ -103,7 +103,7 @@ public final class Table extends Locator {
 
     /** All rows as the user sees them, one per line: {@code row 0: 1 | Ali Veli | Ankara}. */
     public String read() {
-        return app.get("/read", target());
+        return app.get("/read", allRows());
     }
 
     /** The rows with a cell that contains this text. */

@@ -52,13 +52,17 @@ class TestApiLaunchTest {
             app.dialog("Exit").answer("yes");
             app.shouldHaveExited();
             assertFalse(app.isRunning());
+            // a step on an application that has ended fails; it does not pass in silence
+            AssertionError ended = assertThrows(AssertionError.class, () -> app.selectMenu("File > Exit"));
+            assertTrue(ended.getMessage().contains("is not running any more"), ended.getMessage());
         }
     }
 
     /** A test may give the application a home folder of its own, so that its settings stay apart from the user's. */
     @Test
     void findsAnApplicationThatRunsWithAnotherUserHome(@TempDir Path home) {
-        String command = "\"" + TestEnvironment.java() + "\" -Duser.home=\"" + home + "\" -jar target/demo-app.jar";
+        // Quotes at both ends, as for paths with spaces: on Windows the shell must not take the outer pair away.
+        String command = "\"" + TestEnvironment.java() + "\" -Duser.home=\"" + home + "\" -jar \"target/demo-app.jar\"";
         try (SwingApp app = SwingApp.launchCommand(command, TestEnvironment.demoDir().toFile()).timeout(30000)) {
             app.textField("User name").shouldExist();
         }

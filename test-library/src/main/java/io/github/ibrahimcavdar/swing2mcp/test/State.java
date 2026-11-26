@@ -7,21 +7,34 @@ final class State {
     final String text;
     /** The first line after its {@code [ref=eN]}: values and states such as {@code value="x" disabled}. */
     private final String states;
+    /** The whole text of a text component, which the agent sends beside the snapshot line; null if it did not. */
+    private final String exactValue;
 
-    private State(String text, String states) {
+    private State(String text, String states, String exactValue) {
         this.text = text;
         this.states = states;
+        this.exactValue = exactValue;
     }
 
-    /** Reads the answer of /locate: {@code ref=eN}, then the lines. */
+    /** Reads the answer of /locate: {@code ref=eN}, for a text component with {@code value=...}, then the lines. */
     static State of(String answer) {
         int firstBreak = answer.indexOf('\n');
+        String head = firstBreak < 0 ? answer : answer.substring(0, firstBreak);
+        String exact = null;
+        int value = head.indexOf(" value=");
+        if (value >= 0) {
+            try {
+                exact = java.net.URLDecoder.decode(head.substring(value + 7).trim(), "UTF-8");
+            } catch (java.io.UnsupportedEncodingException | IllegalArgumentException e) {
+                exact = null;
+            }
+        }
         String text = firstBreak < 0 ? "" : answer.substring(firstBreak + 1).trim();
         String line = text.indexOf('\n') < 0 ? text : text.substring(0, text.indexOf('\n'));
         line = line.startsWith("- ") ? line.substring(2) : line;
         int ref = line.indexOf("[ref=");
         int end = ref < 0 ? -1 : line.indexOf(']', ref);
-        return new State(text, end < 0 ? "" : " " + line.substring(end + 1).trim() + " ");
+        return new State(text, end < 0 ? "" : " " + line.substring(end + 1).trim() + " ", exact);
     }
 
     /** A state word such as disabled, checked, readonly; never text inside a quoted value. */
@@ -42,6 +55,9 @@ final class State {
 
     /** The quoted text after {@code key=}, e.g. value="Ali"; null if there is none. */
     String quoted(String key) {
+        if (exactValue != null && key.equals("value")) {
+            return exactValue;
+        }
         int at = states.indexOf(" " + key + "=\"");
         if (at < 0) {
             return null;

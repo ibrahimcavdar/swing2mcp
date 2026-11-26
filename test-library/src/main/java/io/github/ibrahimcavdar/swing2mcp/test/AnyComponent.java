@@ -81,6 +81,6 @@ public final class AnyComponent extends Locator {
 
     /** The contents of a table, list, tree or combo box, one row per line. */
     public String read() {
-        return app.get("/read", target());
+        return app.get("/read", allRows());
     }
 }
