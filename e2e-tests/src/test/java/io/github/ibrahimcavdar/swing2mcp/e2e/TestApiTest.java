@@ -184,6 +184,15 @@ class TestApiTest {
         app.label("View center: 0, 0 | zoom 100%").shouldExist();
         app.field("mapCanvas").drag(200, 150, 260, 190);
         app.label("View center: -60, -40 | zoom 100%").shouldExist();
+
+        // The mouse gets to a point before it presses there, and can go somewhere without pressing. The
+        // map drops its pin where the mouse was last seen moving.
+        app.field("mapCanvas").hoverAt(120, 80);
+        app.label("Pointer: 120, 80 | pin: none").shouldExist();
+        app.field("mapCanvas").clickAt(200, 100);
+        app.label("Pointer: 200, 100 | pin: 200, 100").shouldExist();
+        app.locator("slider \"Zoom\"").hover();
+        app.label("Pointer: outside | pin: 200, 100").shouldExist();
     }
 
     @Test

@@ -40,6 +40,7 @@ import java.util.concurrent.ThreadFactory;
  *   GET  /snapshot?window&maxRows&expandMenus
  *   GET  /screenshot?ref               PNG
  *   POST /click  ref, button, clickCount, row, col, x, y
+ *   POST /hover  ref, row, col, value, x, y   the mouse moves there without pressing
  *   POST /type   ref, text, submit, append, mode (keys | set | os)
  *   POST /select ref, value | index
  *   POST /key    key, ref, mode       real key presses, e.g. Enter, Ctrl+S, "Tab Tab"
@@ -66,7 +67,8 @@ final class AgentServer {
     private static final long SNAPSHOT_TIMEOUT_MS = 5000;
 
     private static final java.util.Set<String> ACTIONS = new java.util.HashSet<String>(java.util.Arrays.asList(
-            "/click", "/type", "/select", "/key", "/expand", "/dialog", "/menu", "/drag", "/spring/open", "/reload"));
+            "/click", "/hover", "/type", "/select", "/key", "/expand", "/dialog", "/menu", "/drag", "/spring/open",
+            "/reload"));
 
     private final String token;
     private final Object actionLock = new Object();
@@ -151,6 +153,8 @@ final class AgentServer {
                             return actions.select(params);
                         }
                     }));
+                } else if ("/hover".equals(path)) {
+                    action(exchange, actions.hover(params));
                 } else if ("/expand".equals(path)) {
                     action(exchange, actions.expand(params));
                 } else if ("/read".equals(path)) {

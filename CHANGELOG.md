@@ -21,7 +21,8 @@ between releases.
 - The snapshot shows the editor of a table cell while the cell is being edited (`editing row 0 col 1
   "Owner":` with the text field or combo box below it), so it can be typed into or picked from by ref.
   The same for a tree node that is renamed in place (`editing node 3 "Root/Child":`).
-  `click` also takes a table column by its header text in `col`.
+- `hover` moves the mouse over a component, or a point or item of it, without pressing a button, for what
+  an application does when it is pointed at.
 - The snapshot says when the file dialog of the operating system (`java.awt.FileDialog`) is open. It is
   not Swing, so nothing inside it can be seen or used; it blocks the other windows as for a user, and
   `handle_dialog` with `button=cancel` closes it without a file.
@@ -31,6 +32,10 @@ between releases.
 
 ### Changed
 
+- `click` moves the mouse to its point before it presses, as a real mouse does (`drag` already did). The
+  application gets mouse-entered and mouse-moved first, and the component the mouse was over before gets
+  mouse-exited. This matters for applications that act on where the mouse is, such as a drawing program
+  that places a shape where the mouse was last seen.
 - `stop_app` only stops applications that have the swing2mcp agent. Any other process id is refused, so a
   wrong number cannot end an unrelated program. Its description now says that unsaved work is lost.
 

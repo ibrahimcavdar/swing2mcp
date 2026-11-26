@@ -516,8 +516,7 @@ final class Drags {
         List<Runnable> steps = new ArrayList<Runnable>();
         steps.add(new Runnable() {
             public void run() {
-                d.dispatchEvent(new MouseEvent(d, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), modifiers,
-                        plan.start.x, plan.start.y, 0, false, MouseEvent.NOBUTTON));
+                Pointer.arrive(d, plan.start, modifiers);
             }
         });
         steps.add(new Runnable() {

@@ -101,9 +101,9 @@ should look like.
 Two kinds of component have parts that cannot be named this way:
 
 - A component that paints itself (a snapshot line with `custom-painted`): use the mouse at a point of it,
-  with the x and y that worked in the `click` and `drag` tools: `clickAt(x, y)`, `doubleClickAt(x, y)`,
-  `rightClickAt(x, y)`, `drag(fromX, fromY, toX, toY)`. Check the result in what the application shows
-  elsewhere, or in the component's `screenshot()`.
+  with the x and y that worked in the `click`, `drag` and `hover` tools: `clickAt(x, y)`,
+  `doubleClickAt(x, y)`, `rightClickAt(x, y)`, `drag(fromX, fromY, toX, toY)`, `hoverAt(x, y)`. Check the
+  result in what the application shows elsewhere, or in the component's `screenshot()`.
 - A table cell: `fillCell(row, column, text)` types into it, `selectInCell(row, column, option)` picks
   from its combo box, `clickCell(row, column)` clicks it. While a cell is being edited, the snapshot
   lists its editor under the table; an editor of another kind is reached there, e.g.

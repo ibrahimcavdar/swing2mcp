@@ -179,6 +179,7 @@ final class Tools {
         get("read_items", "/read");
         get("spring_beans", "/spring/beans");
         action("click", "/click");
+        action("hover", "/hover");
         action("type_text", "/type");
         action("press_key", "/key");
         action("select_menu", "/menu");

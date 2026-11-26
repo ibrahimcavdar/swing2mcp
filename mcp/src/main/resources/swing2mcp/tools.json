@@ -108,7 +108,7 @@
   },
   {
     "name": "click",
-    "description": "Click a component like a user would, with real mouse press/release events: a focusable component takes the focus first (so the previous field's input verifier and focus-lost handlers run). Menu items, even inside closed menus, are activated directly. For tables, lists and trees pass `value` (the cell's text, the item's text, or a tree path like \"Root/Child\") or `row` (and `col` for tables). Use clickCount=2 for double-click, button=right for context menus, modifiers=\"Ctrl\" or \"Shift\" to add to or extend the selection (select_option with values/indexes does several at once). Waits first (up to timeoutMs) until the component is visible, enabled, editable where needed, and not blocked by a modal dialog or busy overlay, so no wait_for is needed for a component that is about to become usable. Returns the new snapshot.",
+    "description": "Click a component like a user would, with real mouse events (the mouse moves to the point, then presses and releases): a focusable component takes the focus first (so the previous field's input verifier and focus-lost handlers run). Menu items, even inside closed menus, are activated directly. For tables, lists and trees pass `value` (the cell's text, the item's text, or a tree path like \"Root/Child\") or `row` (and `col` for tables). Use clickCount=2 for double-click, button=right for context menus, modifiers=\"Ctrl\" or \"Shift\" to add to or extend the selection (select_option with values/indexes does several at once). Waits first (up to timeoutMs) until the component is visible, enabled, editable where needed, and not blocked by a modal dialog or busy overlay, so no wait_for is needed for a component that is about to become usable. Returns the new snapshot.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -158,6 +158,45 @@
         "dialog": {
           "type": "string",
           "description": "Answer the modal dialog this action opens with this button (text, or ok/yes/no/cancel); its message is reported. An error if no dialog opens within 3 s"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "description": "How long to wait for the component to become usable (default 10000)"
+        }
+      },
+      "required": [
+        "ref"
+      ]
+    }
+  },
+  {
+    "name": "hover",
+    "description": "Move the mouse over a component without pressing a button, like a user who points at it: the application gets real mouse-entered and mouse-moved events, so what it does when pointed at happens (a rollover, a menu or panel that opens on hover, a shape that follows the mouse). The point is the component's center, x/y inside it, or an item by value or row/col as in click. click and drag move the mouse to their own point first, so hover is only for pointing without clicking. Waits first (up to timeoutMs) until the component is visible, enabled, editable where needed, and not blocked by a modal dialog or busy overlay, so no wait_for is needed for a component that is about to become usable. Returns the new snapshot.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "description": "Table cell text, list item text or tree path to point at"
+        },
+        "row": {
+          "type": "integer",
+          "description": "Row (table/tree) or index (list) to point at"
+        },
+        "col": {
+          "type": "integer",
+          "description": "Table column"
+        },
+        "x": {
+          "type": "integer",
+          "description": "Explicit x inside the component"
+        },
+        "y": {
+          "type": "integer",
+          "description": "Explicit y inside the component"
         },
         "timeoutMs": {
           "type": "integer",

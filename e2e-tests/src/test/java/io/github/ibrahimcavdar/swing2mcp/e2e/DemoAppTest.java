@@ -47,7 +47,7 @@ class DemoAppTest {
     @Order(1)
     void offersTheDocumentedTools() throws Exception {
         List<String> expected = List.of("launch_app", "list_apps", "connect_app", "stop_app", "snapshot",
-                "screenshot", "click", "type_text", "press_key", "select_option", "select_menu", "drag",
+                "screenshot", "click", "hover", "type_text", "press_key", "select_option", "select_menu", "drag",
                 "handle_dialog", "read_items", "expand_node", "wait_for", "hot_reload", "spring_beans",
                 "open_spring_bean");
         assertEquals(new TreeSet<>(expected), new TreeSet<>(mcp.toolNames()));
@@ -230,8 +230,28 @@ class DemoAppTest {
         assertFalse(ok(mcp.call("snapshot")).text().contains("file dialog"));
     }
 
+    /**
+     * A real mouse gets to a point before it presses there. The demo's map drops a pin where the mouse
+     * was last seen moving, so a click must bring the mouse along; hover moves it without a click.
+     */
     @Test
     @Order(12)
+    void movesTheMouseBeforeAClickAndWithoutOne() throws Exception {
+        Result planner = ok(mcp.call("select_option", "ref", ok(mcp.call("snapshot")).ref("field=tabs"), "value", "Planner"));
+        String map = planner.ref("field=mapCanvas");
+        assertContains(planner, "Pointer: outside | pin: none");
+
+        Result hovered = ok(mcp.call("hover", "ref", map, "x", 120, "y", 80));
+        assertContains(hovered, "Moved the mouse over");
+        assertContains(hovered, "Pointer: 120, 80 | pin: none");
+        Result clicked = ok(mcp.call("click", "ref", map, "x", 200, "y", 100));
+        assertContains(clicked, "Pointer: 200, 100 | pin: 200, 100");
+        Result left = ok(mcp.call("hover", "ref", planner.ref("slider \"Zoom\"")));
+        assertContains(left, "Pointer: outside | pin: 200, 100");
+    }
+
+    @Test
+    @Order(13)
     void takesAScreenshot() throws Exception {
         Result shot = ok(mcp.call("screenshot"));
         assertEquals(1, shot.images().size());
@@ -241,7 +261,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(13)
+    @Order(14)
     void refusesToStopAProcessWithoutTheAgent() throws Exception {
         long own = ProcessHandle.current().pid(); // this test JVM: alive, but not a swing2mcp application
         Result refused = mcp.call("stop_app", "pid", own);
@@ -251,7 +271,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(14)
+    @Order(15)
     void stopsTheApplication() throws Exception {
         Result stopped = ok(mcp.call("stop_app", "pid", pid));
         assertContains(stopped, "Stopped pid " + pid);

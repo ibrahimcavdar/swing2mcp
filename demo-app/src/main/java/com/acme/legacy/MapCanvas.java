@@ -17,6 +17,8 @@ import java.awt.event.MouseWheelEvent;
 /**
  * A custom-painted map, like the GIS views of many legacy applications: it has no child
  * components and no text a snapshot could read. Dragging with the mouse pans it, the wheel zooms.
+ * It also knows where the mouse points, and a click drops a pin there: like a drawing program that
+ * places a shape where the mouse was last seen, it relies on the mouse moving before it clicks.
  */
 public class MapCanvas extends JComponent {
 
@@ -31,6 +33,12 @@ public class MapCanvas extends JComponent {
     private double startX;
     private double startY;
     private Runnable onChange;
+    /** Where the mouse was last seen moving inside the map, in pixels; null when it is outside. */
+    private Point pointer;
+    /** Where the pin was dropped, in pixels at that time, and the same place in map units. */
+    private Point pin;
+    private double pinX;
+    private double pinY;
 
     public MapCanvas() {
         setPreferredSize(new Dimension(420, 360));
@@ -49,7 +57,27 @@ public class MapCanvas extends JComponent {
                 }
                 centerX = startX - (e.getX() - dragStart.x) / zoom;
                 centerY = startY - (e.getY() - dragStart.y) / zoom;
+                pointer = e.getPoint();
                 changed();
+            }
+
+            public void mouseMoved(MouseEvent e) {
+                pointer = e.getPoint();
+                changed();
+            }
+
+            public void mouseExited(MouseEvent e) {
+                pointer = null;
+                changed();
+            }
+
+            public void mouseClicked(MouseEvent e) {
+                if (e.getButton() == MouseEvent.BUTTON1 && pointer != null) {
+                    pin = new Point(pointer);
+                    pinX = centerX + (pointer.x - getWidth() / 2.0) / zoom;
+                    pinY = centerY + (pointer.y - getHeight() / 2.0) / zoom;
+                    changed();
+                }
             }
 
             public void mouseReleased(MouseEvent e) {
@@ -81,6 +109,11 @@ public class MapCanvas extends JComponent {
 
     public String describeView() {
         return "View center: " + Math.round(centerX) + ", " + Math.round(centerY) + " | zoom " + Math.round(zoom * 100) + "%";
+    }
+
+    public String describePointer() {
+        return "Pointer: " + (pointer == null ? "outside" : pointer.x + ", " + pointer.y)
+                + " | pin: " + (pin == null ? "none" : pin.x + ", " + pin.y);
     }
 
     private void changed() {
@@ -125,6 +158,12 @@ public class MapCanvas extends JComponent {
             g2.fillOval(x - 5, y - 5, 10, 10);
             g2.setColor(Color.DARK_GRAY);
             g2.drawString((String) place[0], x + 8, y + 4);
+        }
+        if (pin != null) {
+            int x = screenX(pinX);
+            int y = screenY(pinY);
+            g2.setColor(new Color(0x2C3E50));
+            g2.fillPolygon(new int[]{x, x - 6, x + 6}, new int[]{y, y - 16, y - 16}, 3);
         }
         // crosshair at the view center
         g2.setColor(Color.BLACK);

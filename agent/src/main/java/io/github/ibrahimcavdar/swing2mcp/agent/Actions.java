@@ -157,6 +157,42 @@ final class Actions {
     }
 
     /**
+     * Moves the mouse over a component (its center, x/y inside it, or an item as in click) without
+     * pressing a button: the application gets mouse-entered and mouse-moved, as when a user points at it.
+     */
+    Result hover(final Map<String, String> p) throws Exception {
+        final Component c = header(resolve(p), p);
+        final int modifiers = Keys.modifiers(p.get("modifiers"));
+        final Integer rowParam = optInt(p, "row");
+        final String colParam = p.get("col");
+        final Integer x = optInt(p, "x");
+        final Integer y = optInt(p, "y");
+        final String value = Text.isBlank(p.get("value")) ? null : p.get("value");
+        final String[] target = {""};
+        final StringBuilder waited = new StringBuilder();
+        final Point point = whenUsable(p, waited, new Callable<Point>() {
+            public Point call() {
+                ensureUsable(c, false);
+                if (x != null && y != null) {
+                    target[0] = " at " + x + ", " + y;
+                    return new Point(x, y);
+                }
+                Spot spot = itemSpot(c, rowParam, Items.column(c, colParam), value, true);
+                if (spot != null) {
+                    target[0] = spot.what;
+                    return spot.point;
+                }
+                return new Point(c.getWidth() / 2, c.getHeight() / 2);
+            }
+        });
+        return perform(waited + "Moved the mouse over " + describe(c) + target[0], new Runnable() {
+            public void run() {
+                Pointer.arrive(c, point, modifiers);
+            }
+        });
+    }
+
+    /**
      * After a click: if c wanted the focus but the focused field's input verifier kept it, say so
      * (a click on a button still fires its action in that case, as in Swing).
      */
@@ -1435,7 +1471,7 @@ final class Actions {
     /**
      * Clicks at[0] (a holder, so that an earlier step can fill it in) with the given button and
      * modifier keys (InputEvent.*_DOWN_MASK). With when, the click is only done if it returns true
-     * at the time of the press.
+     * just before it. The mouse gets to the point first, as a real one must.
      */
     static List<Runnable> mouse(final Component c, final Point[] at, int count, final int button,
                                 final int modifiers, final Callable<Boolean> when) {
@@ -1443,17 +1479,24 @@ final class Actions {
         final boolean popupButton = button == MouseEvent.BUTTON3;
         final boolean[] skip = {false};
         List<Runnable> steps = new ArrayList<Runnable>();
+        steps.add(new Runnable() {
+            public void run() {
+                if (when != null) {
+                    try {
+                        skip[0] = !when.call();
+                    } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                    }
+                }
+                if (!skip[0]) {
+                    Pointer.arrive(c, at[0], modifiers);
+                }
+            }
+        });
         for (int i = 1; i <= count; i++) {
             final int n = i;
             steps.add(new Runnable() {
                 public void run() {
-                    if (n == 1 && when != null) {
-                        try {
-                            skip[0] = !when.call();
-                        } catch (Exception e) {
-                            throw new IllegalStateException(e);
-                        }
-                    }
                     if (skip[0]) {
                         return;
                     }

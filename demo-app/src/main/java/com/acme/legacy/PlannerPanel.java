@@ -45,6 +45,7 @@ public class PlannerPanel extends JPanel {
     private JLabel lblTrash;
     private JSplitPane splitPlanner;
     private MapCanvas mapCanvas;
+    private JLabel lblPointer;
     private JSlider sldZoom;
     private JLabel lblMapStatus;
 
@@ -99,9 +100,11 @@ public class PlannerPanel extends JPanel {
         sldZoom.setMajorTickSpacing(75);
         sldZoom.setPaintTicks(true);
         lblMapStatus = new JLabel(mapCanvas.describeView());
+        lblPointer = new JLabel(mapCanvas.describePointer());
         mapCanvas.setOnChange(new Runnable() {
             public void run() {
                 lblMapStatus.setText(mapCanvas.describeView());
+                lblPointer.setText(mapCanvas.describePointer());
                 int percent = (int) Math.round(mapCanvas.getZoom() * 100);
                 if (sldZoom.getValue() != percent) {
                     sldZoom.setValue(percent);
@@ -124,7 +127,8 @@ public class PlannerPanel extends JPanel {
         right.add(mapCanvas, BorderLayout.CENTER);
         JPanel bottom = new JPanel(new BorderLayout());
         bottom.add(zoomRow, BorderLayout.NORTH);
-        bottom.add(lblMapStatus, BorderLayout.SOUTH);
+        bottom.add(lblMapStatus, BorderLayout.CENTER);
+        bottom.add(lblPointer, BorderLayout.SOUTH);
         right.add(bottom, BorderLayout.SOUTH);
 
         splitPlanner = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);

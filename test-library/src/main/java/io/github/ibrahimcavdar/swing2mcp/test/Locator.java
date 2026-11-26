@@ -73,6 +73,20 @@ public class Locator {
     }
 
     /**
+     * Moves the mouse over the component without pressing a button, for what an application does when it
+     * is pointed at: a rollover, a panel that opens on hover. Clicks and drags move the mouse to their
+     * own point first, so this is only for pointing without clicking.
+     */
+    public void hover() {
+        act("/hover", target());
+    }
+
+    /** As {@link #hover()}, at one point of the component: pixels from its top left corner. */
+    public void hoverAt(int x, int y) {
+        act("/hover", at(x, y));
+    }
+
+    /**
      * Presses the mouse at one point of the component, moves it to another and releases it there: pans a
      * map, moves a shape, draws a line. The points are pixels from the component's top left corner.
      */

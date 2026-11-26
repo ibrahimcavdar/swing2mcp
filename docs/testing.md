@@ -180,7 +180,7 @@ handling run. They wait first until the component is on screen and usable (10 se
 `app.timeout(ms)` changes it), so tests need no sleeps. The window does not have to be in front.
 
 ```java
-app.button("Save").click();                 // also doubleClick(), rightClick()
+app.button("Save").click();                 // also doubleClick(), rightClick(), hover()
 app.textField("Full Name").fill("Ali");     // also append(...), fillAndSubmit(...)
 app.checkBox("Active customer").check();    // also uncheck()
 app.comboBox("City").select("İzmir");
@@ -240,6 +240,7 @@ elsewhere or in a picture of the component:
 Locator map = app.field("mapCanvas");
 map.clickAt(120, 80);            // also doubleClickAt(...), rightClickAt(...)
 map.drag(200, 150, 260, 190);    // press at the first point, move, release at the second
+map.hoverAt(120, 80);            // the mouse goes there without pressing; hover() for the center
 byte[] png = map.screenshot();   // the component as it is painted now
 ```
 
