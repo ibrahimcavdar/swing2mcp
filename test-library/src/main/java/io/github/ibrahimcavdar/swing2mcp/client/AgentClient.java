@@ -88,7 +88,7 @@ public final class AgentClient {
                 throw new AppExited(pid);
             }
             throw new AgentException("Cannot reach the application (pid " + pid + "): " + e.getMessage()
-                    + ". It may have exited; use list_apps or launch_app.");
+                    + ". It may have exited or stopped answering.");
         }
         if (status != 200) {
             throw new AgentException(new String(body, StandardCharsets.UTF_8));

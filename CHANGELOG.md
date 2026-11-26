@@ -11,30 +11,31 @@ between releases.
 - Tool annotations: the tools that only read (`snapshot`, `screenshot`, `read_items`, `list_apps`,
   `spring_beans`, `wait_for`) are marked read-only and `stop_app` is marked destructive, for clients that
   use these hints to decide when to ask.
-- Locators: wherever a tool takes a `ref`, it also takes a description of the component as the snapshot
-  writes it, such as `button "Save"`, `field=txtName` or `dialog "Confirm" > button "OK"`. Unlike a ref, a
-  locator stays valid from one run of the application to the next.
+- Locators: the tools take a component by its role and name, such as `button "Save"`, as well as by its
+  ref. Unlike a ref, a locator is the same every time the application runs. See
+  [docs/testing.md](docs/testing.md).
 - Experimental test library, `swing2mcp-test`: tests written in Java use the application through the
   agent, without MCP or an AI tool, for example
-  `app.textField("Full Name").fill("Ali"); app.button("Save").click();`. Its jar contains no MCP code.
-  Names may change.
+  `app.textField("Quantity").fill("3"); app.button("Add").click();`. Its jar contains no MCP code.
+  The API may still change. See [docs/testing.md](docs/testing.md).
 - The snapshot shows the editor of a table cell while the cell is being edited (`editing row 0 col 1
   "Owner":` with the text field or combo box below it), so it can be typed into or picked from by ref.
   The same for a tree node that is renamed in place (`editing node 3 "Root/Child":`).
-- `hover` moves the mouse over a component, or a point or item of it, without pressing a button, for what
-  an application does when it is pointed at.
+- `hover` moves the mouse over a component, or a point or item of it, without pressing a button, for
+  rollovers and anything else an application does when the mouse is over it.
 - The snapshot says when the file dialog of the operating system (`java.awt.FileDialog`) is open. It is
-  not Swing, so nothing inside it can be seen or used; it blocks the other windows as for a user, and
-  `handle_dialog` with `button=cancel` closes it without a file.
+  not Swing, so nothing inside it can be seen or used; actions on the other windows are
+  refused while it is open, as a user could not reach them either, and `handle_dialog` with
+  `button=cancel` closes it without a file.
 - `swing2mcp:setup` can also give the chosen AI tools a skill, `swing-ui-test`, that tells them how to
-  write such a test after walking through a scenario; it asks, or takes `-Dswing2mcp.skill=true`.
-  `swing2mcp:uninstall` removes it.
+  write a `swing2mcp-test` test for a scenario they walked through. Setup asks; in scripts pass
+  `-Dswing2mcp.skill=true`. `swing2mcp:uninstall` removes it.
 
 ### Changed
 
 - `click` moves the mouse to its point before it presses, as a real mouse does (`drag` already did). The
   application gets mouse-entered and mouse-moved first, and the component the mouse was over before gets
-  mouse-exited. This matters for applications that act on where the mouse is, such as a drawing program
+  mouse-exited, which matters for applications that act on where the mouse is, such as a drawing program
   that places a shape where the mouse was last seen.
 - `stop_app` only stops applications that have the swing2mcp agent. Any other process id is refused, so a
   wrong number cannot end an unrelated program. Its description now says that unsaved work is lost.
