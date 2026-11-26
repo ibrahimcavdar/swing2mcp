@@ -121,7 +121,7 @@ Each method returns a type that offers only what that kind of component can do:
 | `tree` | `Tree` | `select()`, `expand()`, `collapse()`, `selectedPath()`, `read()` |
 | `tabs` | `Tabs` | `select()` |
 | `frame`, `dialog`, `internalFrame`, `group` | `Container` | every method of this table, limited to its inside; `answer()`, `shouldShow()` |
-| `field`, `locator` | `AnyComponent` | `fill()`, `select()`, `value()`, `isChecked()`, `read()`, `shouldHaveValue()`, `shouldBeChecked()` |
+| `field`, `locator` | `AnyComponent` | `fill()`, `select()`, `value()`, `isChecked()`, `read()`, `shouldHaveValue()`, `shouldBeChecked()`, `asTable()`, `asTree()`, `asList()`, `asTabs()` |
 
 The common checks are `exists()`, `isEnabled()`, `shouldExist()`, `shouldNotExist()`, `shouldBeEnabled()`
 and `shouldBeDisabled()`.
@@ -154,6 +154,14 @@ app.field("txtEmail").fill("ali@example.com");
 ```java
 app.locator("slider \"Zoom\"")
 app.locator("button \"...\" #2")   // the second of several, in snapshot order
+```
+
+A table, tree, list or tabbed pane that is found by its field or by a locator keeps its own commands and
+checks with `asTable()`, `asTree()`, `asList()` or `asTabs()`:
+
+```java
+app.field("tblJobs").asTable().fillCell(0, "Name", "Job 1");
+app.locator("table #2").asTable().shouldHaveRowCount(3);
 ```
 
 A locator must match exactly one component. If it matches none, the error lists what is on screen
@@ -196,6 +204,10 @@ app.chooseFile(new File("data/customers.csv"));
 
 `ok`, `yes`, `no` and `cancel` work in any language of the user interface; a button's own text works too.
 These methods return what the dialog said (its title and message, as text), so a test can check it.
+
+`chooseFile` is for Swing's file chooser. An application may instead open the file dialog of the
+operating system (`java.awt.FileDialog`). That dialog is not Swing: the snapshot says that it is open,
+and `app.answerDialog("cancel")` closes it without a file, but a test cannot pick a file in it.
 
 Table cells are edited the way a user edits them. Rows and columns count from 0; a column can also be
 given by its header text:

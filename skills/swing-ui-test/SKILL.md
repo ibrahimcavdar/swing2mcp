@@ -92,6 +92,9 @@ Use the first of these that names exactly one component:
 4. A pattern, for text with a changing part: `app.label(Pattern.compile("^Customer saved"))`.
 5. A position, as the last resort: `app.locator("button \"...\" #2")`.
 
+A table, tree, list or tabbed pane found by 3 or 5 keeps its own commands with `.asTable()`,
+`.asTree()`, `.asList()` or `.asTabs()`: `app.field("tblJobs").asTable().fillCell(0, "Name", "Job 1")`.
+
 Prefer what a user sees (1, 2) over what a programmer sees (3): the test then also says what the screen
 should look like.
 

@@ -205,8 +205,33 @@ class DemoAppTest {
         assertFalse(typed.text().contains("editing node"), typed.text());
     }
 
+    /**
+     * The operating system's own file dialog is not Swing. Nothing in it can be seen or used, but the
+     * snapshot must say that it is there, it blocks the other windows as for a user, and it can be closed.
+     */
     @Test
     @Order(11)
+    void saysThatTheSystemFileDialogIsOpenAndClosesIt() throws Exception {
+        String tabs = ok(mcp.call("snapshot")).ref("field=tabs");
+        Result opened = ok(mcp.call("select_menu", "path", "File > Attach File..."));
+        assertContains(opened, "NOTE: the operating system's file dialog \"Attach a File\"");
+        assertContains(opened, "modal system file dialog (open), not Swing");
+
+        Result behind = mcp.call("select_option", "ref", tabs, "value", "Customers", "timeoutMs", 300);
+        assertTrue(behind.error(), behind.text());
+        assertContains(behind, "the operating system's file dialog \"Attach a File\"");
+        Result picking = mcp.call("handle_dialog", "path", "notes.txt");
+        assertTrue(picking.error(), picking.text());
+        assertContains(picking, "no file can be picked");
+
+        Result closed = ok(mcp.call("handle_dialog", "button", "cancel"));
+        assertContains(closed, "Closed the operating system's file dialog \"Attach a File\" without a file");
+        assertContains(ok(mcp.call("wait_for", "text", "No file attached")), "No file attached");
+        assertFalse(ok(mcp.call("snapshot")).text().contains("file dialog"));
+    }
+
+    @Test
+    @Order(12)
     void takesAScreenshot() throws Exception {
         Result shot = ok(mcp.call("screenshot"));
         assertEquals(1, shot.images().size());
@@ -216,7 +241,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(12)
+    @Order(13)
     void refusesToStopAProcessWithoutTheAgent() throws Exception {
         long own = ProcessHandle.current().pid(); // this test JVM: alive, but not a swing2mcp application
         Result refused = mcp.call("stop_app", "pid", own);
@@ -226,7 +251,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(13)
+    @Order(14)
     void stopsTheApplication() throws Exception {
         Result stopped = ok(mcp.call("stop_app", "pid", pid));
         assertContains(stopped, "Stopped pid " + pid);

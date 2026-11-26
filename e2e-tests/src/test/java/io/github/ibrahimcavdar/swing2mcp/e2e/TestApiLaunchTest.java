@@ -8,6 +8,10 @@ import com.acme.legacy.DemoApp;
 import io.github.ibrahimcavdar.swing2mcp.test.SwingApp;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /** The ways a test gets hold of an application, other than a command line. */
 class TestApiLaunchTest {
@@ -49,6 +53,16 @@ class TestApiLaunchTest {
             app.shouldHaveExited();
             assertFalse(app.isRunning());
         }
+    }
+
+    /** A test may give the application a home folder of its own, so that its settings stay apart from the user's. */
+    @Test
+    void findsAnApplicationThatRunsWithAnotherUserHome(@TempDir Path home) {
+        String command = "\"" + TestEnvironment.java() + "\" -Duser.home=\"" + home + "\" -jar target/demo-app.jar";
+        try (SwingApp app = SwingApp.launchCommand(command, TestEnvironment.demoDir().toFile()).timeout(30000)) {
+            app.textField("User name").shouldExist();
+        }
+        assertFalse(Files.exists(home.resolve(".swing2mcp")), "the agent registered in the application's home");
     }
 
     @Test

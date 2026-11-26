@@ -76,6 +76,9 @@ final class Dialogs {
 
     /** Dialog "Title" (error: "message"), for results. */
     static String summary(Window w) {
+        if (SnapshotBuilder.isSystemFileDialog(w)) {
+            return "the operating system's file dialog " + Text.quote(title(w));
+        }
         StringBuilder sb = new StringBuilder("dialog ").append(Text.quote(title(w)));
         JOptionPane pane = find(w, JOptionPane.class);
         if (pane != null) {

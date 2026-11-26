@@ -81,6 +81,15 @@ public class MainFrame extends JFrame {
                 }
             }
         });
+        // Some applications ask for a file with the operating system's own dialog instead of Swing's.
+        JMenuItem miAttach = new JMenuItem("Attach File...");
+        miAttach.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                java.awt.FileDialog dialog = new java.awt.FileDialog(MainFrame.this, "Attach a File", java.awt.FileDialog.LOAD);
+                dialog.setVisible(true);
+                lblStatus.setText(dialog.getFile() == null ? "No file attached" : "Attached: " + dialog.getFile());
+            }
+        });
         JMenuItem miGoTo = new JMenuItem("Go to Invoice...");
         miGoTo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, InputEvent.CTRL_MASK));
         miGoTo.addActionListener(new ActionListener() {
@@ -106,6 +115,7 @@ public class MainFrame extends JFrame {
         });
         mnuFile.add(miNewCustomer);
         mnuFile.add(miImport);
+        mnuFile.add(miAttach);
         mnuFile.add(miGoTo);
         mnuFile.addSeparator();
         mnuFile.add(miExit);

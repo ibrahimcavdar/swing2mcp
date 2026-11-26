@@ -169,13 +169,7 @@ public final class Apps {
         }
         Map<String, String> env = builder.environment();
         String existing = env.containsKey("JAVA_TOOL_OPTIONS") ? env.get("JAVA_TOOL_OPTIONS") : "";
-        // The JVM splits JAVA_TOOL_OPTIONS on spaces but honours quotes (also on Java 8), which
-        // matters for Windows user folders such as C:\Users\Ali Veli.
-        String agentPath = agentJar.toString();
-        if (agentPath.indexOf(' ') >= 0) {
-            agentPath = "\"" + agentPath + "\"";
-        }
-        env.put("JAVA_TOOL_OPTIONS", (existing + " -javaagent:" + agentPath).trim());
+        env.put("JAVA_TOOL_OPTIONS", (existing + " " + agentOption(agentJar, registrations)).trim());
         builder.redirectErrorStream(true);
         builder.redirectOutput(log.toFile());
         builder.redirectInput(ProcessBuilder.Redirect.from(new File(Processes.isWindows() ? "NUL" : "/dev/null")));
@@ -211,6 +205,22 @@ public final class Apps {
             Thread.sleep(100);
         }
         return failure("The agent did not report within " + timeout.getSeconds() + " s.", log);
+    }
+
+    /**
+     * The -javaagent option for JAVA_TOOL_OPTIONS. It tells the agent where to register: an application
+     * that is started with another user.home (to keep its settings apart) would otherwise register in a
+     * folder that nobody looks into.
+     */
+    static String agentOption(Path agentJar, Path registrations) {
+        String option = "-javaagent:" + agentJar;
+        String dir = registrations.toAbsolutePath().toString();
+        if (dir.indexOf(',') < 0 && dir.indexOf('"') < 0) { // a comma separates the agent's options
+            option += "=dir=" + dir;
+        }
+        // The JVM splits JAVA_TOOL_OPTIONS on spaces but honours quotes (also on Java 8), which
+        // matters for Windows user folders such as C:\Users\Ali Veli.
+        return option.indexOf(' ') >= 0 ? "\"" + option + "\"" : option;
     }
 
     private static String launched(AppInfo app, Path log) {

@@ -59,6 +59,26 @@ public final class AnyComponent extends Locator {
         });
     }
 
+    /**
+     * The same component as a table, with a table's commands and checks: for a table that has no name, or
+     * one of several, e.g. {@code app.field("tblJobs").asTable()} or {@code app.locator("table #2").asTable()}.
+     */
+    public Table asTable() {
+        return new Table(app, locator);
+    }
+
+    public Tree asTree() {
+        return new Tree(app, locator);
+    }
+
+    public ItemList asList() {
+        return new ItemList(app, locator);
+    }
+
+    public Tabs asTabs() {
+        return new Tabs(app, locator);
+    }
+
     /** The contents of a table, list, tree or combo box, one row per line. */
     public String read() {
         return app.get("/read", target());

@@ -22,6 +22,9 @@ between releases.
   "Owner":` with the text field or combo box below it), so it can be typed into or picked from by ref.
   The same for a tree node that is renamed in place (`editing node 3 "Root/Child":`).
   `click` also takes a table column by its header text in `col`.
+- The snapshot says when the file dialog of the operating system (`java.awt.FileDialog`) is open. It is
+  not Swing, so nothing inside it can be seen or used; it blocks the other windows as for a user, and
+  `handle_dialog` with `button=cancel` closes it without a file.
 - `swing2mcp:setup` can also give the chosen AI tools a skill, `swing-ui-test`, that tells them how to
   write such a test after walking through a scenario; it asks, or takes `-Dswing2mcp.skill=true`.
   `swing2mcp:uninstall` removes it.
@@ -30,6 +33,11 @@ between releases.
 
 - `stop_app` only stops applications that have the swing2mcp agent. Any other process id is refused, so a
   wrong number cannot end an unrelated program. Its description now says that unsaved work is lost.
+
+### Fixed
+
+- `launch_app` also finds an application that is started with another `user.home` (to keep its settings
+  apart): the agent is told where to register.
 
 ## 0.1.0 - 2026-11-21
 

@@ -210,7 +210,11 @@ public final class SwingApp extends Scope implements AutoCloseable {
         return post("/dialog", params);
     }
 
-    /** Picks a file or directory in the file chooser that is open and presses its Open or Save button. */
+    /**
+     * Picks a file or directory in the file chooser that is open and presses its Open or Save button. For
+     * Swing's file chooser; the operating system's own file dialog (java.awt.FileDialog) is not Swing and
+     * can only be closed, with {@code answerDialog("cancel")}.
+     */
     public String chooseFile(File file) {
         Map<String, Object> params = new LinkedHashMap<String, Object>();
         params.put("path", file.getAbsolutePath());

@@ -603,6 +603,10 @@ final class Actions {
                 return w;
             }
         });
+        if (SnapshotBuilder.isSystemFileDialog(dialog)) {
+            return closeSystemFileDialog((java.awt.FileDialog) dialog, button, text != null || path != null,
+                    waited.toString());
+        }
         String summary = Edt.call(new Callable<String>() {
             public String call() {
                 return Dialogs.summary(dialog);
@@ -690,6 +694,25 @@ final class Actions {
         });
         Result result = perform(done.toString(), steps);
         return new Result(result.message + still[0], result.settled, result.failed);
+    }
+
+    /**
+     * The operating system's file dialog can only be closed, as with its Cancel button: the application
+     * then gets no file. Its fields and buttons are not components, so no file can be picked in it.
+     */
+    private Result closeSystemFileDialog(final java.awt.FileDialog dialog, String button, boolean fills,
+                                         String waited) throws Exception {
+        String title = Text.quote(dialog.getTitle());
+        if (fills || button == null || !("cancel".equalsIgnoreCase(button.trim()) || "close".equalsIgnoreCase(button.trim()))) {
+            throw new IllegalArgumentException("Dialog " + title + " is the operating system's file dialog, not a "
+                    + "Swing one: no file can be picked and no button pressed in it from here. button=cancel closes "
+                    + "it without a file; picking a file in it needs the real keyboard or a tool for the operating system");
+        }
+        return perform(waited + "Closed the operating system's file dialog " + title + " without a file", new Runnable() {
+            public void run() {
+                dialog.setVisible(false);
+            }
+        });
     }
 
     /**
@@ -1083,6 +1106,9 @@ final class Actions {
                 if (window == null) {
                     throw new NotReady("No visible window to send keys to");
                 }
+                if (SnapshotBuilder.isSystemFileDialog(window)) {
+                    throw new NotReady("blocked by " + SnapshotBuilder.blocker((Dialog) window), "; close it first");
+                }
                 Component owner = Keys.focusOwner(window);
                 return owner != null ? describe(owner) : "window " + Text.quote(title(window));
             }
@@ -1347,7 +1373,7 @@ final class Actions {
         Dialog modal = SnapshotBuilder.activeModalDialog();
         Window window = Keys.windowOf(c);
         if (modal != null && window != null && !isSameOrOwnedBy(window, modal)) {
-            throw new NotReady("blocked by modal dialog " + Text.quote(modal.getTitle()), "; close it first");
+            throw new NotReady("blocked by " + SnapshotBuilder.blocker(modal), "; close it first");
         }
         if (!allowHidden) {
             Component glass = blockingGlassPane(c);

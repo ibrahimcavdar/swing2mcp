@@ -131,11 +131,31 @@ final class SnapshotBuilder {
     static List<Window> showingWindows() {
         List<Window> result = new ArrayList<Window>();
         for (Window window : Window.getWindows()) {
-            if (window.isShowing() && window.getWidth() > 0 && window.getHeight() > 0 && !isFacade(window)) {
+            // the operating system's file dialog has no size here on Windows, but it is on screen
+            if (window.isShowing() && (isSystemFileDialog(window) || window.getWidth() > 0 && window.getHeight() > 0)
+                    && !isFacade(window)) {
                 result.add(window);
             }
         }
         return result;
+    }
+
+    /**
+     * A file dialog of the operating system (java.awt.FileDialog, not Swing's JFileChooser). The operating
+     * system draws and runs it, so nothing inside it can be seen or used from here; it can only be closed.
+     */
+    static boolean isSystemFileDialog(Window window) {
+        return window instanceof java.awt.FileDialog;
+    }
+
+    static final String SYSTEM_FILE_DIALOG = "it belongs to the operating system, not to Swing, so what is inside "
+            + "cannot be seen or used here; handle_dialog button=cancel closes it without a file";
+
+    /** How messages name the dialog that blocks the other windows. */
+    static String blocker(Dialog modal) {
+        return isSystemFileDialog(modal)
+                ? "the operating system's file dialog " + Text.quote(modal.getTitle()) + " (" + SYSTEM_FILE_DIALOG + ")"
+                : "modal dialog " + Text.quote(modal.getTitle());
     }
 
     /**
@@ -204,8 +224,14 @@ final class SnapshotBuilder {
         focusOwner = Keys.focusOwner();
         Dialog modal = activeModalDialog();
         if (modal != null && only == null) {
-            out.append("NOTE: modal dialog ").append(Text.quote(modal.getTitle())).append(" [ref=")
-                    .append(refs.refFor(modal)).append("] is open and blocks the other windows.\n");
+            if (isSystemFileDialog(modal)) {
+                out.append("NOTE: the operating system's file dialog ").append(Text.quote(modal.getTitle())).append(" [ref=")
+                        .append(refs.refFor(modal)).append("] is open and blocks the other windows: ")
+                        .append(SYSTEM_FILE_DIALOG).append(".\n");
+            } else {
+                out.append("NOTE: modal dialog ").append(Text.quote(modal.getTitle())).append(" [ref=")
+                        .append(refs.refFor(modal)).append("] is open and blocks the other windows.\n");
+            }
         }
         for (Window window : windows) {
             if (only != null && window != only) {
@@ -214,6 +240,9 @@ final class SnapshotBuilder {
             naming.indexWindow(window);
             int before = out.length();
             line(0, windowHeader(window));
+            if (isSystemFileDialog(window)) {
+                continue; // whatever AWT has inside it (nothing, or its own drawing) is not the dialog's content
+            }
             int afterHeader = out.length();
             if (window instanceof RootPaneContainer) {
                 JRootPane rootPane = ((RootPaneContainer) window).getRootPane();
@@ -232,6 +261,12 @@ final class SnapshotBuilder {
     }
 
     private String windowHeader(Window window) {
+        if (isSystemFileDialog(window)) {
+            java.awt.FileDialog dialog = (java.awt.FileDialog) window;
+            return "dialog " + Text.quote(dialog.getTitle()) + ref(window) + (dialog.isModal() ? " modal" : "")
+                    + " system file dialog (" + (dialog.getMode() == java.awt.FileDialog.SAVE ? "save" : "open")
+                    + "), not Swing: its inside is not shown";
+        }
         StringBuilder sb = new StringBuilder();
         if (window instanceof Frame) {
             sb.append("frame ").append(Text.quote(((Frame) window).getTitle()));

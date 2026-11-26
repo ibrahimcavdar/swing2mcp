@@ -109,6 +109,17 @@ class TestApiTest {
         app.group("Customer Details").textField("Email").shouldHaveValue("ali@example.com");
         app.group("Customer Details").button("Clear").click();
         app.textField("Email").shouldHaveValue("");
+
+        // a table, tree, list or tabbed pane found this way still has its own commands and checks
+        Table customers = app.field("tblCustomers").asTable();
+        customers.shouldHaveCell(0, "Full Name", customers.cell(0, 1));
+        assertEquals(customers.rowCount(), app.locator("table #1").asTable().rowCount());
+        app.field("tabs").asTabs().select("Orders");
+        app.field("treeCategories").asTree().select("Office/Stationery");
+        assertEquals("Categories/Office/Stationery", app.locator("tree").asTree().selectedPath());
+        app.field("lstOrders").asList().select("SP-1002 Mehmet Demir");
+        app.field("lstOrders").asList().shouldHaveSelectedIndex(1);
+        app.field("tabs").asTabs().select("Customers");
     }
 
     @Test
@@ -215,12 +226,32 @@ class TestApiTest {
         app.tabs().select("Customers");
     }
 
+    /** The operating system's file dialog is not Swing: a test sees that it is open and can only close it. */
+    @Test
+    @Order(11)
+    void closesTheSystemFileDialog() {
+        app.selectMenu("File > Attach File...");
+        app.dialog("Attach a File").shouldExist();
+        app.timeout(300);
+        AssertionError behind = assertThrows(AssertionError.class, () -> app.tabs().select("Orders"));
+        assertTrue(behind.getMessage().contains("the operating system's file dialog"), behind.getMessage());
+        AssertionError picking = assertThrows(AssertionError.class,
+                () -> app.chooseFile(new java.io.File("notes.txt")));
+        assertTrue(picking.getMessage().contains("no file can be picked"), picking.getMessage());
+        app.timeout(5000);
+
+        String closed = app.answerDialog("cancel");
+        assertTrue(closed.contains("without a file"), closed);
+        app.label("No file attached").shouldExist();
+        app.dialog("Attach a File").shouldNotExist();
+    }
+
     /**
      * The API names each kind of component in its own code, and the agent has its own list of roles. A
      * role the agent does not know is refused, so asking each method for something keeps the two in step.
      */
     @Test
-    @Order(11)
+    @Order(12)
     void everyKindOfComponentIsARoleTheAgentKnows() throws Exception {
         int asked = 0;
         for (java.lang.reflect.Method method : io.github.ibrahimcavdar.swing2mcp.test.Scope.class.getDeclaredMethods()) {

@@ -26,11 +26,12 @@ final class Screenshots {
     /** The window a user would be looking at: modal dialog, then active window, then first frame. */
     static Window defaultTarget() {
         Dialog modal = SnapshotBuilder.activeModalDialog();
-        if (modal != null) {
+        if (modal != null && !SnapshotBuilder.isSystemFileDialog(modal)) {
             return modal;
         }
+        // the operating system's file dialog cannot be painted from here: show the window behind it
         Window active = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
-        if (active != null && active.isShowing()) {
+        if (active != null && active.isShowing() && !SnapshotBuilder.isSystemFileDialog(active)) {
             return active;
         }
         List<Window> windows = SnapshotBuilder.showingWindows();
