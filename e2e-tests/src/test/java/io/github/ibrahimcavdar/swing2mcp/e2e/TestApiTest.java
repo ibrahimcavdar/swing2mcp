@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ibrahimcavdar.swing2mcp.test.SwingApp;
+import io.github.ibrahimcavdar.swing2mcp.test.Table;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -153,12 +154,56 @@ class TestApiTest {
         assertEquals("\u0089PNG", new String(png, 0, 4, java.nio.charset.StandardCharsets.ISO_8859_1));
     }
 
+    /** What a test must be able to do with a component that paints itself: the mouse at a point of it. */
+    @Test
+    @Order(8)
+    void usesTheMouseAtAPointOfAComponent() {
+        // The rows of the customers table are 16 pixels high: y 24 is in the second row, y 40 in the third.
+        app.table().clickAt(60, 24);
+        app.table().shouldHaveSelectedRow(1);
+        app.table().rightClickAt(60, 40);
+        app.table().shouldHaveSelectedRow(2);
+        app.menuItem("Load into Form").click();
+        app.textField("Full Name").shouldHaveValue("Zeynep Kaya");
+        app.table().doubleClickAt(60, 8);
+        app.textField("Full Name").shouldHaveValue("Ayşe Yılmaz");
+
+        app.tabs().select("Planner");
+        app.label("View center: 0, 0 | zoom 100%").shouldExist();
+        app.field("mapCanvas").drag(200, 150, 260, 190);
+        app.label("View center: -60, -40 | zoom 100%").shouldExist();
+    }
+
+    @Test
+    @Order(9)
+    void editsTableCells() {
+        Table assignments = app.table("Assignments");
+        assignments.fillCell(0, "Task", "Budget 2026");
+        assignments.shouldHaveCell(0, "Task", "Budget 2026");
+        assignments.selectInCell(0, "Owner", "Mert");
+        assignments.shouldHaveCell(0, 1, "Mert");
+        assignments.selectInCell(0, 1, "Selin");
+        assignments.fillCell(0, 0, "Budget 2027");
+        assignments.shouldContain("Budget 2027 | Selin | 12");
+        assertFalse(app.snapshot().contains("editing row"), app.snapshot());
+
+        assignments.clickCell(0, "Hours");
+        assignments.shouldHaveSelectedRow(0);
+        app.timeout(300);
+        AssertionError readOnly = assertThrows(AssertionError.class, () -> assignments.fillCell(0, "Hours", "40"));
+        assertTrue(readOnly.getMessage().contains("row 0, column \"Hours\""), readOnly.getMessage());
+        assertTrue(readOnly.getMessage().contains("is the cell editable"), readOnly.getMessage());
+        assignments.shouldHaveCell(0, "Hours", "12");
+        app.timeout(5000);
+        app.tabs().select("Customers");
+    }
+
     /**
      * The API names each kind of component in its own code, and the agent has its own list of roles. A
      * role the agent does not know is refused, so asking each method for something keeps the two in step.
      */
     @Test
-    @Order(8)
+    @Order(10)
     void everyKindOfComponentIsARoleTheAgentKnows() throws Exception {
         int asked = 0;
         for (java.lang.reflect.Method method : io.github.ibrahimcavdar.swing2mcp.test.Scope.class.getDeclaredMethods()) {

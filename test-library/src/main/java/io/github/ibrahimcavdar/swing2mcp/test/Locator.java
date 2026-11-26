@@ -51,6 +51,46 @@ public class Locator {
     }
 
     /**
+     * A click at one point of the component, for components that paint themselves (a drawing, a map, a
+     * chart) and so have no parts to name. x and y are pixels from its top left corner, as in a
+     * {@link #screenshot()} of it.
+     */
+    public void clickAt(int x, int y) {
+        act("/click", at(x, y));
+    }
+
+    public void doubleClickAt(int x, int y) {
+        Map<String, Object> params = at(x, y);
+        params.put("clickCount", 2);
+        act("/click", params);
+    }
+
+    /** A right click at one point of the component; a context menu it opens is then on screen. */
+    public void rightClickAt(int x, int y) {
+        Map<String, Object> params = at(x, y);
+        params.put("button", "right");
+        act("/click", params);
+    }
+
+    /**
+     * Presses the mouse at one point of the component, moves it to another and releases it there: pans a
+     * map, moves a shape, draws a line. The points are pixels from the component's top left corner.
+     */
+    public void drag(int fromX, int fromY, int toX, int toY) {
+        Map<String, Object> params = at(fromX, fromY);
+        params.put("toX", toX);
+        params.put("toY", toY);
+        act("/drag", params);
+    }
+
+    private Map<String, Object> at(int x, int y) {
+        Map<String, Object> params = target();
+        params.put("x", x);
+        params.put("y", y);
+        return params;
+    }
+
+    /**
      * Clicks, and answers the dialog that the click opens with one of its buttons: its text, or
      * ok / yes / no / cancel in any language. Returns what the dialog said.
      */

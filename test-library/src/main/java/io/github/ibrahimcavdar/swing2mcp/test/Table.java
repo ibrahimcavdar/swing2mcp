@@ -1,9 +1,13 @@
 package io.github.ibrahimcavdar.swing2mcp.test;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** A table. A row is named by the text of one of its cells. */
 public final class Table extends Locator {
+
+    /** A cell's editor is there right after the click that opens it, or it does not come at all. */
+    private static final long EDITOR_WAIT_MS = 2000;
 
     Table(SwingApp app, String locator) {
         super(app, locator);
@@ -26,6 +30,75 @@ public final class Table extends Locator {
         params.put("value", cellText);
         params.put("clickCount", 2);
         act("/click", params);
+    }
+
+    /** Clicks a cell. Rows count from 0, as on screen; the column is its header text. */
+    public void clickCell(int row, String column) {
+        clickCellAt(row, column, 1);
+    }
+
+    /** Clicks a cell. Rows and columns count from 0, as on screen. */
+    public void clickCell(int row, int column) {
+        clickCellAt(row, column, 1);
+    }
+
+    public void doubleClickCell(int row, String column) {
+        clickCellAt(row, column, 2);
+    }
+
+    public void doubleClickCell(int row, int column) {
+        clickCellAt(row, column, 2);
+    }
+
+    /**
+     * Types into a cell as a user does: a double-click opens the cell's text field, the text replaces what
+     * is there and Enter ends the editing. For cells that are edited with a text field.
+     */
+    public void fillCell(int row, String column, String text) {
+        edit(row, column, 2, "textfield", "/type", "text", text);
+    }
+
+    public void fillCell(int row, int column, String text) {
+        edit(row, column, 2, "textfield", "/type", "text", text);
+    }
+
+    /** Picks an option in a cell that is edited with a combo box, which a click on the cell opens. */
+    public void selectInCell(int row, String column, String option) {
+        edit(row, column, 1, "combobox", "/select", "value", option);
+    }
+
+    public void selectInCell(int row, int column, String option) {
+        edit(row, column, 1, "combobox", "/select", "value", option);
+    }
+
+    private void clickCellAt(int row, Object column, int clicks) {
+        Map<String, Object> params = target();
+        params.put("row", row);
+        params.put("col", column);
+        if (clicks > 1) {
+            params.put("clickCount", clicks);
+        }
+        act("/click", params);
+    }
+
+    /** The clicks open the cell's editor, a component of its own inside the table, which then gets the value. */
+    private void edit(int row, Object column, int clicks, String editor, String endpoint, String key, String value) {
+        clickCellAt(row, column, clicks);
+        Map<String, Object> params = new LinkedHashMap<String, Object>();
+        params.put("ref", locator + " > " + editor);
+        params.put("timeoutMs", Math.min(app.timeoutMs(), EDITOR_WAIT_MS));
+        params.put(key, value);
+        if (endpoint.equals("/type")) {
+            params.put("submit", true);
+        }
+        try {
+            act(endpoint, params);
+        } catch (AssertionError e) {
+            String cell = "row " + row + ", column " + (column instanceof String ? "\"" + column + "\"" : column);
+            throw new AssertionError("The cell in " + cell + " of " + locator + " could not be edited with a "
+                    + editor + (clicks > 1 ? " after a double-click" : " after a click")
+                    + " (is the cell editable, and edited this way?).\n" + e.getMessage());
+        }
     }
 
     /** All rows as the user sees them, one per line: {@code row 0: 1 | Ali Veli | Ankara}. */

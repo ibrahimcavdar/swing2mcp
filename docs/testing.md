@@ -117,7 +117,7 @@ Each method returns a type that offers only what that kind of component can do:
 | `textField`, `passwordField`, `textArea`, `spinner` | `TextInput` | `fill()`, `append()`, `fillAndSubmit()`, `value()`, `shouldHaveValue()` |
 | `comboBox` | `ComboBox` | `select()`, `value()`, `shouldHaveValue()` |
 | `list` | `ItemList` | `select()`, `itemCount()`, `selectedIndex()`, `read()`, `shouldContain()`, `shouldHaveSelectedIndex()` |
-| `table` | `Table` | `selectRow()`, `doubleClickRow()`, `rowCount()`, `cell()`, `selectedRow()`, `read()`, `find()`, and the checks below |
+| `table` | `Table` | `selectRow()`, `doubleClickRow()`, `clickCell()`, `doubleClickCell()`, `fillCell()`, `selectInCell()`, `rowCount()`, `cell()`, `selectedRow()`, `read()`, `find()`, and the checks below |
 | `tree` | `Tree` | `select()`, `expand()`, `collapse()`, `selectedPath()`, `read()` |
 | `tabs` | `Tabs` | `select()` |
 | `frame`, `dialog`, `internalFrame`, `group` | `Container` | every method of this table, limited to its inside; `answer()`, `shouldShow()` |
@@ -197,6 +197,31 @@ app.chooseFile(new File("data/customers.csv"));
 `ok`, `yes`, `no` and `cancel` work in any language of the user interface; a button's own text works too.
 These methods return what the dialog said (its title and message, as text), so a test can check it.
 
+Table cells are edited the way a user edits them. Rows and columns count from 0; a column can also be
+given by its header text:
+
+```java
+app.table().fillCell(0, "Task", "Budget 2026");   // double-click, type, Enter
+app.table().selectInCell(0, "Owner", "Mert");     // a cell that is edited with a combo box
+app.table().clickCell(2, "Active");               // e.g. a check box in a cell
+```
+
+While a cell is being edited, its editor is a component inside the table and the snapshot lists it there,
+so a cell with another kind of editor can be reached after `clickCell` or `doubleClickCell`, for example
+with `app.locator("table \"Orders\" > spinner")`.
+
+A component that paints itself (a drawing, a map, a chart) has nothing inside that could be named; the
+snapshot shows it as `custom ... (custom-painted, use screenshot to see it)`. A test uses the mouse at a
+point of it, in pixels from its top left corner, and checks the result in what the application shows
+elsewhere or in a picture of the component:
+
+```java
+Locator map = app.field("mapCanvas");
+map.clickAt(120, 80);            // also doubleClickAt(...), rightClickAt(...)
+map.drag(200, 150, 260, 190);    // press at the first point, move, release at the second
+byte[] png = map.screenshot();   // the component as it is painted now
+```
+
 ## Checking things
 
 Methods that start with `should` wait until what they expect is true, and fail after the timeout with
@@ -262,7 +287,7 @@ screen may be locked.
 
 ## Limits
 
-- No multiple selection, drag and drop or typing into table cells yet; the AI tools have these.
+- No multiple selection and no drag and drop from one component to another yet; the AI tools have these.
 - `launch(Main.class)` passes the class path on the command line. A very long class path can exceed the
   limit of Windows when tests are run from an IDE; Maven's test runner avoids this.
 - Not tried: a display replacement such as Caciocavallo, Windows build servers that run as a service.
