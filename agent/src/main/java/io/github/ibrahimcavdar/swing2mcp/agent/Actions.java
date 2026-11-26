@@ -91,7 +91,7 @@ final class Actions {
         final boolean right = button == MouseEvent.BUTTON3;
         final int modifiers = Keys.modifiers(p.get("modifiers"));
         final Integer rowParam = optInt(p, "row");
-        final Integer col = optInt(p, "col");
+        final String colParam = p.get("col");
         final Integer x = optInt(p, "x");
         final Integer y = optInt(p, "y");
         final String value = Text.isBlank(p.get("value")) ? null : p.get("value");
@@ -109,7 +109,7 @@ final class Actions {
                 if (x != null && y != null) {
                     return new Point(x, y);
                 }
-                Spot spot = itemSpot(c, rowParam, col, value, true);
+                Spot spot = itemSpot(c, rowParam, Items.column(c, colParam), value, true);
                 if (spot != null) {
                     target[0] = spot.what;
                     return spot.point;
@@ -268,6 +268,11 @@ final class Actions {
                     action.set(new Runnable() {
                         public void run() {
                             combo.setSelectedIndex(i);
+                            if (combo.isPopupVisible()) {
+                                // an open list (e.g. of a table cell's combo box) closes after the pick,
+                                // as it does when a user picks from it
+                                combo.setPopupVisible(false);
+                            }
                         }
                     });
                     return items.get(i);

@@ -1,8 +1,10 @@
 package com.acme.legacy;
 
 import javax.swing.BorderFactory;
+import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultListModel;
 import javax.swing.DropMode;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -60,13 +62,16 @@ public class PlannerPanel extends JPanel {
                 "Plan sprint", "Release 3.3", "Clean up logs");
         lstWeek = taskList(taskHandler, "Customer call");
 
-        assignmentModel = new DefaultTableModel(new Object[]{"Task", "Owner"}, 0) {
+        // Edited in place, as in many legacy grids: the task by typing, the owner from a combo box.
+        assignmentModel = new DefaultTableModel(new Object[]{"Task", "Owner", "Hours"}, 0) {
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return column < 2;
             }
         };
-        assignmentModel.addRow(new Object[]{"Budget 2025", "Elif"});
+        assignmentModel.addRow(new Object[]{"Budget 2025", "Elif", "12"});
         tblAssignments = new JTable(assignmentModel);
+        tblAssignments.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(
+                new JComboBox<String>(new String[]{"(unassigned)", "Elif", "Mert", "Selin"})));
         tblAssignments.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tblAssignments.setDropMode(DropMode.INSERT_ROWS);
         tblAssignments.setFillsViewportHeight(true);
@@ -251,7 +256,7 @@ public class PlannerPanel extends JPanel {
             int row = ((JTable.DropLocation) support.getDropLocation()).getRow();
             String[] tasks = tasksOf(support);
             for (String task : tasks) {
-                assignmentModel.insertRow(row++, new Object[]{task, "(unassigned)"});
+                assignmentModel.insertRow(row++, new Object[]{task, "(unassigned)", ""});
             }
             status.setText("Assigned " + tasks.length + (tasks.length == 1 ? " task" : " tasks"));
             return true;

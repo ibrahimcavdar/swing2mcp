@@ -438,6 +438,31 @@ final class Items {
         return cellText(table, row, columns(table, p.get("col")).get(0));
     }
 
+    /**
+     * The column an action is aimed at: its position or, for a table or its header, its header text.
+     * Null when none is given.
+     */
+    static Integer column(Component c, String spec) {
+        if (Text.isBlank(spec)) {
+            return null;
+        }
+        String given = spec.trim();
+        if (given.matches("-?\\d+")) {
+            return Integer.valueOf(given); // the caller says what is out of range
+        }
+        JTable table = c instanceof JTable ? (JTable) c
+                : c instanceof javax.swing.table.JTableHeader ? ((javax.swing.table.JTableHeader) c).getTable() : null;
+        if (table == null) {
+            throw new IllegalArgumentException("Parameter col must be a number: " + spec);
+        }
+        for (int col = 0; col < table.getColumnCount(); col++) {
+            if (matches(String.valueOf(table.getColumnName(col)), given)) {
+                return col;
+            }
+        }
+        throw new IllegalArgumentException("No column " + Text.quote(given));
+    }
+
     /** Columns by index or name ("0,2" or "Name,City"); all when blank. */
     private static List<Integer> columns(JTable table, String spec) {
         List<Integer> cols = new ArrayList<Integer>();

@@ -164,8 +164,33 @@ class DemoAppTest {
         assertFalse(submitted.text().contains("not committed"), submitted.text());
     }
 
+    /** A cell that is being edited has a component of its own on top of it, which the snapshot must show. */
     @Test
     @Order(9)
+    void showsTheEditorOfATableCellAndTypesIntoIt() throws Exception {
+        Result main = ok(mcp.call("snapshot"));
+        Result planner = ok(mcp.call("select_option", "ref", main.ref("field=tabs"), "value", "Planner"));
+        String table = planner.ref("field=tblAssignments");
+        assertFalse(planner.text().contains("editing row"), planner.text());
+
+        Result editing = ok(mcp.call("click", "ref", table, "row", 0, "col", 0, "clickCount", 2));
+        assertContains(editing, "editing row 0 col 0 \"Task\":");
+        String textField = editing.ref("textfield [ref=");
+        Result typed = ok(mcp.call("type_text", "ref", textField, "text", "Budget 2026", "submit", true));
+        assertContains(typed, "row 0: Budget 2026 | Elif | 12");
+        assertFalse(typed.text().contains("editing row"), typed.text());
+
+        Result choosing = ok(mcp.call("click", "ref", table, "row", 0, "col", 1));
+        assertContains(choosing, "editing row 0 col 1 \"Owner\":");
+        assertContains(choosing, "options=[\"(unassigned)\", \"Elif\", \"Mert\", \"Selin\"]");
+        Result chosen = ok(mcp.call("select_option", "ref", choosing.ref("combobox [ref="), "value", "Mert"));
+        assertContains(chosen, "row 0: Budget 2026 | Mert | 12");
+        assertFalse(chosen.text().contains("editing row"), chosen.text());
+        assertFalse(chosen.text().contains("popupmenu"), chosen.text());
+    }
+
+    @Test
+    @Order(10)
     void takesAScreenshot() throws Exception {
         Result shot = ok(mcp.call("screenshot"));
         assertEquals(1, shot.images().size());
@@ -175,7 +200,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(10)
+    @Order(11)
     void refusesToStopAProcessWithoutTheAgent() throws Exception {
         long own = ProcessHandle.current().pid(); // this test JVM: alive, but not a swing2mcp application
         Result refused = mcp.call("stop_app", "pid", own);
@@ -185,7 +210,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(11)
+    @Order(12)
     void stopsTheApplication() throws Exception {
         Result stopped = ok(mcp.call("stop_app", "pid", pid));
         assertContains(stopped, "Stopped pid " + pid);

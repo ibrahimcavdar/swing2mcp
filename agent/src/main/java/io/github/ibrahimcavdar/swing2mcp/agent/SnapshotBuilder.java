@@ -541,6 +541,16 @@ final class SnapshotBuilder {
             line(depth, (last < rows ? "… " + (rows - last) + " more rows; " : "") + "read_items ref="
                     + refs.refFor(table) + " reads all rows and columns");
         }
+        // A cell that is being edited: its editor is a real component on top of the cell, so it is listed
+        // like any other and can be typed into or picked from.
+        Component editor = table.isEditing() ? table.getEditorComponent() : null;
+        if (editor != null && editor.isShowing()) {
+            int col = table.getEditingColumn();
+            line(depth, "editing row " + table.getEditingRow() + " col " + col
+                    + (col >= 0 && col < table.getColumnCount() ? " " + Text.quote(Text.plain(table.getColumnName(col)), 60) : "")
+                    + ":");
+            visit(editor, depth + 1);
+        }
     }
 
     private void listItems(JList<?> list, int depth) {
