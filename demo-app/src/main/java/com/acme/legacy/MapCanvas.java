@@ -107,6 +107,13 @@ public class MapCanvas extends JComponent {
         return zoom;
     }
 
+    /** Back to the start: Old Town in the middle, 100%. */
+    public void home() {
+        centerX = 0;
+        centerY = 0;
+        setZoom(1.0);
+    }
+
     public String describeView() {
         return "View center: " + Math.round(centerX) + ", " + Math.round(centerY) + " | zoom " + Math.round(zoom * 100) + "%";
     }

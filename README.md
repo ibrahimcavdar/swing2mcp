@@ -110,7 +110,7 @@ as it is on the [demo application](demo-app/README.md).
 | `snapshot` | Text summary of the windows, with `ref` IDs |
 | `screenshot` | PNG image of a window or component |
 | `click` | Real mouse click on a button, table cell, list item or tree node (by text or path); double click, right click, column header, with Ctrl/Shift |
-| `hover` | Moves the mouse over a component without clicking, for what an application does when it is pointed at |
+| `hover` | Moves the mouse over a component without clicking, for what an application does when it is pointed at; can turn the mouse wheel there |
 | `type_text` | Types real keys into a text field, password, spinner or editable combo |
 | `press_key` | Enter, Escape, Tab, arrows, F-keys and shortcuts such as Ctrl+S |
 | `select_option` | Combo, list, tab, table cell, tree node (by path); several rows, items or nodes with Ctrl/Shift clicks, ranges included |

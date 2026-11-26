@@ -29,11 +29,22 @@ public class Locator {
         return params;
     }
 
+    /** As {@link #target}, to read the rows or items of the component: as many as the agent gives at once. */
+    final Map<String, Object> allRows() {
+        Map<String, Object> params = target();
+        params.put("limit", 1000);
+        return params;
+    }
+
     final void act(String endpoint, Map<String, Object> params) {
         app.post(endpoint, params);
     }
 
-    /** A real mouse click, as a user's. */
+    /**
+     * A mouse click as a user's: the mouse goes to the middle of the component (scrolled into view if it
+     * was not) and presses there. If something else lies on top at that point, the click fails and says
+     * what covers the component.
+     */
     public void click() {
         act("/click", target());
     }
@@ -84,6 +95,23 @@ public class Locator {
     /** As {@link #hover()}, at one point of the component: pixels from its top left corner. */
     public void hoverAt(int x, int y) {
         act("/hover", at(x, y));
+    }
+
+    /**
+     * Moves the mouse over the component and turns the mouse wheel there: scrolls a list, zooms a map.
+     * A positive number of notches is down (toward the user), a negative one up.
+     */
+    public void scroll(int notches) {
+        Map<String, Object> params = target();
+        params.put("wheel", notches);
+        act("/hover", params);
+    }
+
+    /** As {@link #scroll(int)}, at one point of the component: pixels from its top left corner. */
+    public void scrollAt(int x, int y, int notches) {
+        Map<String, Object> params = at(x, y);
+        params.put("wheel", notches);
+        act("/hover", params);
     }
 
     /**

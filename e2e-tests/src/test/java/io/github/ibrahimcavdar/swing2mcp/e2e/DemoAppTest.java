@@ -248,6 +248,19 @@ class DemoAppTest {
         assertContains(clicked, "Pointer: 200, 100 | pin: 200, 100");
         Result left = ok(mcp.call("hover", "ref", planner.ref("slider \"Zoom\"")));
         assertContains(left, "Pointer: outside | pin: 200, 100");
+
+        // The mouse acts on a point of the window: the wheel zooms what is under it, a click on a label
+        // inside a panel that is clicked as a whole reaches the panel, and what lies on top takes the mouse.
+        Result zoomed = ok(mcp.call("hover", "ref", map, "x", 120, "y", 80, "wheel", -2));
+        assertContains(zoomed, "turned the wheel 2 notches up");
+        assertContains(zoomed, "zoom 156%");
+        Result home = ok(mcp.call("click", "ref", "label \"Click to center the map\""));
+        assertContains(home, "View center: 0, 0 | zoom 100%");
+        ok(mcp.call("click", "ref", "checkbox \"Lock map\""));
+        Result covered = mcp.call("click", "ref", map, "x", 200, "y", 100, "timeoutMs", 300);
+        assertTrue(covered.error(), covered.text());
+        assertContains(covered, "is covered by");
+        ok(mcp.call("click", "ref", "checkbox \"Lock map\""));
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.acme.legacy;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultListModel;
+import javax.swing.JCheckBox;
 import javax.swing.DropMode;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -14,6 +15,7 @@ import javax.swing.JSlider;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
+import javax.swing.OverlayLayout;
 import javax.swing.SwingConstants;
 import javax.swing.TransferHandler;
 import javax.swing.event.ChangeEvent;
@@ -28,12 +30,17 @@ import java.awt.Insets;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 
 /**
  * Drag and drop between lists, a table and a drop zone (Swing TransferHandlers, as in many
  * legacy planning screens), multi-select lists, a split pane, a zoom slider and a map that pans
- * with the mouse.
+ * with the mouse. Next to the map: a panel that is clicked as a whole (its labels do not listen to the
+ * mouse themselves), and a lock that lays a panel over the map, which then takes the mouse instead of it.
  */
 public class PlannerPanel extends JPanel {
 
@@ -48,6 +55,9 @@ public class PlannerPanel extends JPanel {
     private JLabel lblPointer;
     private JSlider sldZoom;
     private JLabel lblMapStatus;
+    private JPanel pnlHome;
+    private JPanel pnlMapLock;
+    private JCheckBox chkLockMap;
 
     public PlannerPanel(JLabel status) {
         this.status = status;
@@ -123,8 +133,51 @@ public class PlannerPanel extends JPanel {
         lblZoom.setLabelFor(sldZoom);
         zoomRow.add(lblZoom, BorderLayout.WEST);
         zoomRow.add(sldZoom, BorderLayout.CENTER);
+        // A card: the panel listens to the mouse, the labels inside it do not.
+        pnlHome = new JPanel(new BorderLayout(6, 0));
+        pnlHome.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+        pnlHome.add(new JLabel(" Old Town"), BorderLayout.WEST);
+        pnlHome.add(new JLabel("Click to center the map"), BorderLayout.CENTER);
+        pnlHome.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                mapCanvas.home();
+            }
+
+            public void mouseEntered(MouseEvent e) {
+                pnlHome.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+            }
+
+            public void mouseExited(MouseEvent e) {
+                pnlHome.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+            }
+        });
+        // A lock: a panel over the map that takes the mouse, as a "please wait" layer does.
+        pnlMapLock = new JPanel(new BorderLayout());
+        pnlMapLock.setOpaque(false);
+        pnlMapLock.add(new JLabel("Map is locked", SwingConstants.CENTER), BorderLayout.NORTH);
+        pnlMapLock.addMouseListener(new MouseAdapter() {
+        });
+        pnlMapLock.setVisible(false);
+        JPanel mapLayers = new JPanel() {
+            public boolean isOptimizedDrawingEnabled() {
+                return false; // its children overlap
+            }
+        };
+        mapLayers.setLayout(new OverlayLayout(mapLayers));
+        mapLayers.add(pnlMapLock);
+        mapLayers.add(mapCanvas);
+        chkLockMap = new JCheckBox("Lock map");
+        chkLockMap.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                pnlMapLock.setVisible(chkLockMap.isSelected());
+            }
+        });
+        JPanel mapTop = new JPanel(new BorderLayout(6, 0));
+        mapTop.add(pnlHome, BorderLayout.CENTER);
+        mapTop.add(chkLockMap, BorderLayout.EAST);
         JPanel right = new JPanel(new BorderLayout(0, 4));
-        right.add(mapCanvas, BorderLayout.CENTER);
+        right.add(mapTop, BorderLayout.NORTH);
+        right.add(mapLayers, BorderLayout.CENTER);
         JPanel bottom = new JPanel(new BorderLayout());
         bottom.add(zoomRow, BorderLayout.NORTH);
         bottom.add(lblMapStatus, BorderLayout.CENTER);

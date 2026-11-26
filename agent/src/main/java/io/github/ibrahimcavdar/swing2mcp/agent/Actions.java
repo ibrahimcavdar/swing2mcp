@@ -107,14 +107,14 @@ final class Actions {
                     return null; // use doClick: works for items of closed menus too
                 }
                 if (x != null && y != null) {
-                    return new Point(x, y);
+                    return reachable(c, new Point(x, y));
                 }
                 Spot spot = itemSpot(c, rowParam, Items.column(c, colParam), value, true);
                 if (spot != null) {
                     target[0] = spot.what;
-                    return spot.point;
+                    return reachable(c, spot.point);
                 }
-                return new Point(c.getWidth() / 2, c.getHeight() / 2);
+                return reachable(c, new Point(c.getWidth() / 2, c.getHeight() / 2));
             }
         });
 
@@ -168,6 +168,10 @@ final class Actions {
         final Integer x = optInt(p, "x");
         final Integer y = optInt(p, "y");
         final String value = Text.isBlank(p.get("value")) ? null : p.get("value");
+        final Integer wheel = optInt(p, "wheel");
+        if (wheel != null && Math.abs(wheel) > 100) {
+            throw new IllegalArgumentException("wheel must be between -100 and 100 notches");
+        }
         final String[] target = {""};
         final StringBuilder waited = new StringBuilder();
         final Point point = whenUsable(p, waited, new Callable<Point>() {
@@ -175,21 +179,60 @@ final class Actions {
                 ensureUsable(c, false);
                 if (x != null && y != null) {
                     target[0] = " at " + x + ", " + y;
-                    return new Point(x, y);
+                    return reachable(c, new Point(x, y));
                 }
                 Spot spot = itemSpot(c, rowParam, Items.column(c, colParam), value, true);
                 if (spot != null) {
                     target[0] = spot.what;
-                    return spot.point;
+                    return reachable(c, spot.point);
                 }
-                return new Point(c.getWidth() / 2, c.getHeight() / 2);
+                return reachable(c, new Point(c.getWidth() / 2, c.getHeight() / 2));
             }
         });
-        return perform(waited + "Moved the mouse over " + describe(c) + target[0], new Runnable() {
+        final Component[] window = new Component[1];
+        final Point[] at = new Point[1];
+        List<Runnable> steps = new ArrayList<Runnable>();
+        steps.add(new Runnable() {
             public void run() {
-                Pointer.arrive(c, point, modifiers);
+                window[0] = Pointer.dispatcher(c);
+                at[0] = Pointer.arrive(c, point, modifiers);
             }
         });
+        int notches = wheel == null ? 0 : Math.abs(wheel);
+        for (int i = 0; i < notches; i++) {
+            steps.add(new Runnable() {
+                public void run() {
+                    Pointer.wheel(window[0], at[0], modifiers, wheel > 0);
+                }
+            });
+        }
+        String turned = notches == 0 ? "" : " and turned the wheel " + notches + (notches == 1 ? " notch " : " notches ")
+                + (wheel > 0 ? "down" : "up") + (modifiers != 0 ? " holding " + InputEvent.getModifiersExText(modifiers) : "");
+        return perform(waited + "Moved the mouse over " + describe(c) + target[0] + turned, steps);
+    }
+
+    /**
+     * On the EDT: p of c as a point the mouse can use: scrolled into view if it was not, and with nothing
+     * on top that would take the mouse instead. A user could not click there otherwise either.
+     */
+    static Point reachable(Component c, Point p) {
+        if (c.getWidth() <= 0 || c.getHeight() <= 0) {
+            return p;
+        }
+        if (!Pointer.bringIntoView(c, p)) {
+            throw new NotReady(describe(c) + " is not in view at that point", "; what contains it cuts it off there");
+        }
+        Component cover = Pointer.cover(c, p);
+        if (cover != null) {
+            // Not a dead end: what is on top may pass the mouse on, and a click on the window at the same
+            // point goes to it as a user's would.
+            Component window = Pointer.dispatcher(c);
+            Point at = SwingUtilities.convertPoint(c, p, window);
+            throw new NotReady(describe(c) + " is covered by " + describe(cover) + " at that point",
+                    "; the mouse would reach that instead. To use the mouse on what is on top, give "
+                            + describe(window) + " with x=" + at.x + " and y=" + at.y);
+        }
+        return p;
     }
 
     /**
@@ -1471,13 +1514,17 @@ final class Actions {
     /**
      * Clicks at[0] (a holder, so that an earlier step can fill it in) with the given button and
      * modifier keys (InputEvent.*_DOWN_MASK). With when, the click is only done if it returns true
-     * just before it. The mouse gets to the point first, as a real one must.
+     * just before it. The mouse gets to the point first, as a real one must, and the events go to the
+     * window, which hands them to whatever is at that point (see {@link Pointer}).
      */
     static List<Runnable> mouse(final Component c, final Point[] at, int count, final int button,
                                 final int modifiers, final Callable<Boolean> when) {
         final int downMask = InputEvent.getMaskForButton(button);
         final boolean popupButton = button == MouseEvent.BUTTON3;
         final boolean[] skip = {false};
+        // the mouse stays at one point of the window from the press on, whatever the press does to c
+        final Component[] d = new Component[1];
+        final Point[] spot = new Point[1];
         List<Runnable> steps = new ArrayList<Runnable>();
         steps.add(new Runnable() {
             public void run() {
@@ -1489,7 +1536,8 @@ final class Actions {
                     }
                 }
                 if (!skip[0]) {
-                    Pointer.arrive(c, at[0], modifiers);
+                    d[0] = Pointer.dispatcher(c);
+                    spot[0] = Pointer.arrive(c, at[0], modifiers);
                 }
             }
         });
@@ -1500,11 +1548,10 @@ final class Actions {
                     if (skip[0]) {
                         return;
                     }
-                    Point p = at[0];
                     Window window = Keys.windowOf(c);
                     Component before = Keys.focusOwner(window);
-                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(),
-                            modifiers | downMask, p.x, p.y, n, popupButton && !WINDOWS, button));
+                    Pointer.button(d[0], MouseEvent.MOUSE_PRESSED, spot[0], modifiers | downMask, n,
+                            popupButton && !WINDOWS, button);
                     Keys.syncFocus(window, before);
                 }
             });
@@ -1513,11 +1560,8 @@ final class Actions {
                     if (skip[0]) {
                         return;
                     }
-                    Point p = at[0];
-                    long now = System.currentTimeMillis();
-                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_RELEASED, now, modifiers, p.x, p.y, n,
-                            popupButton && WINDOWS, button));
-                    c.dispatchEvent(new MouseEvent(c, MouseEvent.MOUSE_CLICKED, now, modifiers, p.x, p.y, n, false, button));
+                    Pointer.button(d[0], MouseEvent.MOUSE_RELEASED, spot[0], modifiers, n, popupButton && WINDOWS, button);
+                    Pointer.button(d[0], MouseEvent.MOUSE_CLICKED, spot[0], modifiers, n, false, button);
                 }
             });
         }

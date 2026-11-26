@@ -96,6 +96,14 @@ Attach API. It has nothing to do with an AI agent.
   the result says when the application changed or rejected keys. `mode=set` calls `setText` instead.
 - **Clicks** are a real mouse press and release, also for buttons. The press moves the focus first, so
   focus-lost handlers (such as a formatted field committing its value) run before the button's action.
+- **The mouse is somewhere and acts on a point.** Mouse events are handed to the window at a point, as
+  the operating system does, and AWT picks who gets them: the topmost component there that listens to
+  the mouse. So a click reaches what a user's click reaches (the panel around a label, the field inside
+  a spinner), the mouse enters and leaves components on its way, and a component that is covered by
+  another is not clicked through: the action is refused and says what is on top. Sending the events
+  straight to the named component was simpler, but it clicked things a user could not reach. The mouse
+  position is the last point an action moved to; code that asks the operating system where the mouse is
+  (`MouseInfo`) does not see it.
 - **An action is a list of steps**, each queued on the UI thread and waited for, and actions run one at a
   time. What one event causes (a focus change, a dialog) happens before the next event, as with a real
   keyboard and mouse.

@@ -22,7 +22,8 @@ between releases.
   "Owner":` with the text field or combo box below it), so it can be typed into or picked from by ref.
   The same for a tree node that is renamed in place (`editing node 3 "Root/Child":`).
 - `hover` moves the mouse over a component, or a point or item of it, without pressing a button, for
-  rollovers and anything else an application does when the mouse is over it.
+  rollovers and anything else an application does when the mouse is over it. With `wheel` it also turns
+  the mouse wheel there, to scroll or to zoom.
 - The snapshot says when the file dialog of the operating system (`java.awt.FileDialog`) is open. It is
   not Swing, so nothing inside it can be seen or used; actions on the other windows are
   refused while it is open, as a user could not reach them either, and `handle_dialog` with
@@ -37,6 +38,10 @@ between releases.
   application gets mouse-entered and mouse-moved first, and the component the mouse was over before gets
   mouse-exited, which matters for applications that act on where the mouse is, such as a drawing program
   that places a shape where the mouse was last seen.
+- `click` and `hover` act on a point of the window, as a real mouse does. A component that is scrolled
+  out of view is scrolled into view first, a click on a label inside a clickable panel reaches the panel,
+  and a component that is covered by something else is no longer clicked through: the click is refused
+  and says what is on top.
 - `stop_app` only stops applications that have the swing2mcp agent. Any other process id is refused, so a
   wrong number cannot end an unrelated program. Its description now says that unsaved work is lost.
 
@@ -44,6 +49,7 @@ between releases.
 
 - `launch_app` also finds an application that is started with another `user.home` (to keep its settings
   apart): the agent is told where to register.
+- On Windows, `launch_app` runs a command that both starts and ends with a quoted path.
 
 ## 0.1.0 - 2026-11-21
 

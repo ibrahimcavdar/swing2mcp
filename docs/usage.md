@@ -156,7 +156,10 @@ also adds the skill for [writing tests](testing.md) to the named tools.
 Actions work **like a real user**, so the application runs the same code as for a person: `type_text` and
 `press_key` send real key events (key listeners, input verifiers, length limits and shortcuts run),
 `click` sends real mouse events (the mouse moves to the point and the focus moves first, as with a
-mouse), `hover` moves the mouse there without a click, and menus open level by level.
+mouse), `hover` moves the mouse there without a click and can turn the mouse wheel, and menus open level
+by level. The mouse acts on a point of the window, as a user's does: a component that is scrolled out of
+view is scrolled into view first, and one that is covered by something else is not clicked through (the
+click is refused and says what is on top).
 The application window does not have to be in front: keys go to the application, not to the program you
 are typing in. `drag` pans and moves with in-application mouse events, and does drag and drop through the
 application's own TransferHandlers (its `canImport`, `importData` and `exportDone` run, at a real drop
