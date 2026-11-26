@@ -159,6 +159,7 @@ final class Actions {
     /**
      * Moves the mouse over a component (its center, x/y inside it, or an item as in click) without
      * pressing a button: the application gets mouse-entered and mouse-moved, as when a user points at it.
+     * With wheel=N the mouse wheel is turned there as well, one event per notch; positive is down.
      */
     Result hover(final Map<String, String> p) throws Exception {
         final Component c = header(resolve(p), p);

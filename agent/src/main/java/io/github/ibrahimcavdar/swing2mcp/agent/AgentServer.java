@@ -40,7 +40,7 @@ import java.util.concurrent.ThreadFactory;
  *   GET  /snapshot?window&maxRows&expandMenus
  *   GET  /screenshot?ref               PNG
  *   POST /click  ref, button, clickCount, row, col, x, y
- *   POST /hover  ref, row, col, value, x, y   the mouse moves there without pressing
+ *   POST /hover  ref, row, col, value, x, y, wheel, modifiers   the mouse moves there without pressing
  *   POST /type   ref, text, submit, append, mode (keys | set | os)
  *   POST /select ref, value | index
  *   POST /key    key, ref, mode       real key presses, e.g. Enter, Ctrl+S, "Tab Tab"
