@@ -210,6 +210,15 @@ While a cell is being edited, its editor is a component inside the table and the
 so a cell with another kind of editor can be reached after `clickCell` or `doubleClickCell`, for example
 with `app.locator("table \"Orders\" > spinner")`.
 
+A tree node that is renamed in place has its editor inside the tree in the same way. F2 opens it:
+
+```java
+app.tree().select("Europe/Turkey");
+app.tree().pressKey("F2");                         // keys for one component, whatever has the focus
+app.locator("tree > textfield").fill("Türkiye");
+app.pressKey("Enter");
+```
+
 A component that paints itself (a drawing, a map, a chart) has nothing inside that could be named; the
 snapshot shows it as `custom ... (custom-painted, use screenshot to see it)`. A test uses the mouse at a
 point of it, in pixels from its top left corner, and checks the result in what the application shows

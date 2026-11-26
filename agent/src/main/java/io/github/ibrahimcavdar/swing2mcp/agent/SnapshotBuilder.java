@@ -598,6 +598,18 @@ final class SnapshotBuilder {
         if (last < rows) {
             line(depth, "… " + (rows - last) + " more rows; read_items ref=" + refs.refFor(tree) + " reads them");
         }
+        // A node that is being edited in place: as in a table, the editor is a real component inside the tree.
+        TreePath editing = tree.isEditing() ? tree.getEditingPath() : null;
+        if (editing != null) {
+            for (Component child : tree.getComponents()) {
+                if (!(child instanceof javax.swing.CellRendererPane) && child.isShowing()) {
+                    line(depth, "editing node " + tree.getRowForPath(editing) + " "
+                            + Text.quote(Items.pathText(tree, editing)) + ":");
+                    visit(child, depth + 1);
+                    break;
+                }
+            }
+        }
     }
 
     /** selected="Root/Child" for the lead selection of a tree (the path is what expand and select take). */

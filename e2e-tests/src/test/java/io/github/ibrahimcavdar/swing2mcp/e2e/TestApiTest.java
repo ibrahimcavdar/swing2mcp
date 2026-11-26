@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ibrahimcavdar.swing2mcp.test.SwingApp;
 import io.github.ibrahimcavdar.swing2mcp.test.Table;
+import io.github.ibrahimcavdar.swing2mcp.test.Tree;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -198,12 +199,28 @@ class TestApiTest {
         app.tabs().select("Customers");
     }
 
+    /** A tree node is renamed in place: F2 in the tree opens its text field, which the snapshot lists. */
+    @Test
+    @Order(10)
+    void renamesATreeNodeInPlace() {
+        app.tabs().select("Orders");
+        Tree categories = app.tree();
+        categories.select("Electronics/Phones");
+        categories.pressKey("F2");
+        assertTrue(app.snapshot().contains("editing node 3 \"Categories/Electronics/Phones\":"), app.snapshot());
+        app.locator("tree > textfield").fill("Mobile");
+        app.pressKey("Enter");
+        assertEquals("Categories/Electronics/Mobile", categories.selectedPath());
+        assertFalse(app.snapshot().contains("editing node"), app.snapshot());
+        app.tabs().select("Customers");
+    }
+
     /**
      * The API names each kind of component in its own code, and the agent has its own list of roles. A
      * role the agent does not know is refused, so asking each method for something keeps the two in step.
      */
     @Test
-    @Order(10)
+    @Order(11)
     void everyKindOfComponentIsARoleTheAgentKnows() throws Exception {
         int asked = 0;
         for (java.lang.reflect.Method method : io.github.ibrahimcavdar.swing2mcp.test.Scope.class.getDeclaredMethods()) {

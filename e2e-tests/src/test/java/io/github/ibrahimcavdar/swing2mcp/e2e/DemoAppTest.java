@@ -189,8 +189,24 @@ class DemoAppTest {
         assertFalse(chosen.text().contains("popupmenu"), chosen.text());
     }
 
+    /** The same for a tree node that is renamed in place. */
     @Test
     @Order(10)
+    void showsTheEditorOfATreeNodeAndRenamesIt() throws Exception {
+        Result main = ok(mcp.call("snapshot"));
+        Result orders = ok(mcp.call("select_option", "ref", main.ref("field=tabs"), "value", "Orders"));
+        String tree = orders.ref("field=treeCategories");
+        ok(mcp.call("select_option", "ref", tree, "value", "Electronics/Phones"));
+
+        Result editing = ok(mcp.call("press_key", "key", "F2", "ref", tree));
+        assertContains(editing, "editing node 3 \"Categories/Electronics/Phones\":");
+        Result typed = ok(mcp.call("type_text", "ref", editing.ref("textfield [ref="), "text", "Mobile", "submit", true));
+        assertContains(typed, "node 3: \"Mobile\"");
+        assertFalse(typed.text().contains("editing node"), typed.text());
+    }
+
+    @Test
+    @Order(11)
     void takesAScreenshot() throws Exception {
         Result shot = ok(mcp.call("screenshot"));
         assertEquals(1, shot.images().size());
@@ -200,7 +216,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(11)
+    @Order(12)
     void refusesToStopAProcessWithoutTheAgent() throws Exception {
         long own = ProcessHandle.current().pid(); // this test JVM: alive, but not a swing2mcp application
         Result refused = mcp.call("stop_app", "pid", own);
@@ -210,7 +226,7 @@ class DemoAppTest {
     }
 
     @Test
-    @Order(12)
+    @Order(13)
     void stopsTheApplication() throws Exception {
         Result stopped = ok(mcp.call("stop_app", "pid", pid));
         assertContains(stopped, "Stopped pid " + pid);

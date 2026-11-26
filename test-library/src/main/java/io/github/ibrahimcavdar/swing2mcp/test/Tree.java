@@ -9,7 +9,7 @@ public final class Tree extends Locator {
         super(app, locator);
     }
 
-    /** Clicks the node; its ancestors are expanded on the way. */
+    /** Selects the node; its ancestors are expanded on the way. */
     public void select(String path) {
         Map<String, Object> params = target();
         params.put("value", path);

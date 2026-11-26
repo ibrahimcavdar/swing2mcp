@@ -83,6 +83,16 @@ public class Locator {
         act("/drag", params);
     }
 
+    /**
+     * Presses keys in this component, wherever the keyboard focus is now: {@code tree.pressKey("F2")},
+     * {@code table.pressKey("Ctrl+A")}. {@link SwingApp#pressKey} presses them where the focus is.
+     */
+    public void pressKey(String keys) {
+        Map<String, Object> params = target();
+        params.put("key", keys);
+        act("/key", params);
+    }
+
     private Map<String, Object> at(int x, int y) {
         Map<String, Object> params = target();
         params.put("x", x);

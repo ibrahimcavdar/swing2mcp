@@ -103,7 +103,9 @@ Two kinds of component have parts that cannot be named this way:
   elsewhere, or in the component's `screenshot()`.
 - A table cell: `fillCell(row, column, text)` types into it, `selectInCell(row, column, option)` picks
   from its combo box, `clickCell(row, column)` clicks it. While a cell is being edited, the snapshot
-  lists its editor under the table.
+  lists its editor under the table; an editor of another kind is reached there, e.g.
+  `app.locator("table > spinner")`. A tree node that is renamed in place works the same way:
+  `tree.pressKey("F2")`, then `app.locator("tree > textfield")`.
 
 ## Rules
 

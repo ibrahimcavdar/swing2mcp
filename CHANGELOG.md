@@ -20,6 +20,7 @@ between releases.
   Names may change.
 - The snapshot shows the editor of a table cell while the cell is being edited (`editing row 0 col 1
   "Owner":` with the text field or combo box below it), so it can be typed into or picked from by ref.
+  The same for a tree node that is renamed in place (`editing node 3 "Root/Child":`).
   `click` also takes a table column by its header text in `col`.
 - `swing2mcp:setup` can also give the chosen AI tools a skill, `swing-ui-test`, that tells them how to
   write such a test after walking through a scenario; it asks, or takes `-Dswing2mcp.skill=true`.

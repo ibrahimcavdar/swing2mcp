@@ -50,6 +50,7 @@ public class OrderPanel extends JPanel {
         root.add(office);
         root.add(archive);
         treeCategories = new JTree(root);
+        treeCategories.setEditable(true); // a category is renamed in place: F2, or three clicks on its name
         treeCategories.addTreeWillExpandListener(new TreeWillExpandListener() {
             public void treeWillExpand(TreeExpansionEvent event) {
                 if (event.getPath().getLastPathComponent() != archive || archive.getChildCount() != 1
